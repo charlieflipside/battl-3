@@ -33,20 +33,20 @@ export const ABILITIES = {
         icon: '🔥'
     },
     
-    // Fighter abilities
+    // Fighter abilities - melee range (5 foot squares)
     SLASH: {
         name: 'Slash',
         displayName: 'Slash',
         classRestriction: 'Fighter',
         costMove: false,
         costStandard: true,
-        range: 1,
+        range: 5,  // 5 foot squares
         radius: 0,
         damage: 5,
         bonusAgainst: 'Ranger',
         bonusAmount: 0,
         saveDifficulty: 0,
-        description: 'A quick strike with a melee weapon',
+        description: 'A quick strike with a melee weapon (5 foot reach)',
         icon: '⚔️'
     },
     
@@ -56,13 +56,13 @@ export const ABILITIES = {
         classRestriction: 'Fighter',
         costMove: true,
         costStandard: true,
-        range: 1,
+        range: 5,  // 5 foot squares
         radius: 0,
         damage: 10,
         bonusAgainst: 'Ranger',
         bonusAmount: 0,
         saveDifficulty: 0,
-        description: 'A powerful blow with a shield that deals heavy damage',
+        description: 'A powerful blow with a shield that deals heavy damage (5 foot reach)',
         icon: '🛡️'
     },
     

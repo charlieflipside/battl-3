@@ -1,14 +1,58 @@
 import { nextTurn, selectCharacter, gameState } from '../game.js';
 import { AbilitySystem } from '../engine/abilities.js';
 
+// Convert numeric coordinates to chess-style notation
+function toGridCoord(x, y) {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    return `${letters[x]}${y + 1}`;
+}
+
+// Add log entry to the game log
+function addLogEntry(message, classes = []) {
+    const logEntries = document.getElementById('log-entries');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + classes.join(' ');
+    entry.textContent = message;
+    logEntries.appendChild(entry);
+    logEntries.scrollTop = logEntries.scrollHeight; // Auto-scroll to bottom
+}
+
 // Set up all the UI controls and event handlers
 export function setupControls(state) {
     const canvas = document.getElementById('battlefield');
     const moveBtn = document.getElementById('move-btn');
     const attackBtn = document.getElementById('attack-btn');
+    const doneBtn = document.getElementById('done-btn');
     const endTurnBtn = document.getElementById('end-turn-btn');
     
     const abilitySystem = new AbilitySystem(state);
+
+    // Track original position for move reversion
+    let originalPosition = null;
+    
+    function updateButtonStates() {
+        // Disable/enable buttons based on state
+        moveBtn.disabled = !state.selectedCharacter || 
+                          (state.selectedCharacter.hasAttacked && !state.selectedCharacter.isAtOriginalPosition);
+        attackBtn.disabled = !state.selectedCharacter || state.selectedCharacter.hasAttacked;
+        doneBtn.disabled = !state.selectedCharacter;
+        endTurnBtn.disabled = !state.selectedCharacter;
+
+        // Highlight active mode
+        moveBtn.classList.toggle('active', state.phase === 'move');
+        attackBtn.classList.toggle('active', state.phase === 'attack');
+
+        // Update visual state
+        if (state.selectedCharacter) {
+            if (state.phase === 'move') {
+                const validMoves = state.selectedCharacter.getValidMoves(state.battlefield);
+                state.battlefield.highlightCells(validMoves, 'move-highlight');
+            } else if (state.phase === 'attack') {
+                const validAttacks = state.selectedCharacter.getValidAttacks(state.battlefield, state.characters);
+                state.battlefield.highlightCells(validAttacks, 'attack-highlight');
+            }
+        }
+    }
     
     // Canvas click handler
     canvas.addEventListener('click', (event) => {
@@ -16,45 +60,17 @@ export function setupControls(state) {
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
         
-        // Convert click coordinates to grid cell
         const cell = state.battlefield.getCellFromPosition(x, y);
         if (!cell) return;
         
         handleCellClick(cell, state);
-    });
-    
-    // Add right-click handler to exit modes
-    canvas.addEventListener('contextmenu', (event) => {
-        event.preventDefault(); // Prevent default context menu
-        if (state.phase === 'attack' || state.phase === 'move') {
-            state.phase = 'select';
-            // Clear any highlights or previews
-            state.battlefield.clearHighlights();
-            state.battlefield.render();
-        }
-    });
-
-    // Add keyboard handler for ESC key
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') {
-            if (state.phase === 'attack' || state.phase === 'move') {
-                state.phase = 'select';
-                // Clear any highlights or previews
-                state.battlefield.clearHighlights();
-                state.battlefield.render();
-            }
-        }
+        updateButtonStates();
     });
     
     // Move button click handler
     moveBtn.addEventListener('click', () => {
-        if (!state.selectedCharacter) {
-            alert('Select a character first');
-            return;
-        }
-        
-        if (state.selectedCharacter.hasMoved) {
-            alert('Character has already moved this turn');
+        if (!state.selectedCharacter || 
+            (state.selectedCharacter.hasAttacked && !state.selectedCharacter.isAtOriginalPosition)) {
             return;
         }
         
@@ -62,19 +78,19 @@ export function setupControls(state) {
             alert('Not your character');
             return;
         }
+
+        if (!originalPosition) {
+            originalPosition = {...state.selectedCharacter.position};
+            state.selectedCharacter.isAtOriginalPosition = true;
+        }
         
         state.phase = 'move';
+        updateButtonStates();
     });
     
     // Attack button click handler
     attackBtn.addEventListener('click', () => {
-        if (!state.selectedCharacter) {
-            alert('Select a character first');
-            return;
-        }
-        
-        if (state.selectedCharacter.hasAttacked) {
-            alert('Character has already attacked this turn');
+        if (!state.selectedCharacter || state.selectedCharacter.hasAttacked) {
             return;
         }
         
@@ -84,19 +100,46 @@ export function setupControls(state) {
         }
         
         state.phase = 'attack';
+        updateButtonStates();
+    });
+
+    // Done button click handler
+    doneBtn.addEventListener('click', () => {
+        if (!state.selectedCharacter) return;
+        
+        // Commit the current state
+        if (state.selectedCharacter.position.x !== originalPosition?.x || 
+            state.selectedCharacter.position.y !== originalPosition?.y) {
+            state.selectedCharacter.hasMoved = true;
+            const newPos = toGridCoord(state.selectedCharacter.position.x, state.selectedCharacter.position.y);
+            addLogEntry(
+                `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} moves to ${newPos}`,
+                ['move']
+            );
+        }
+        
+        state.phase = 'select';
+        originalPosition = null;
+        state.selectedCharacter.isAtOriginalPosition = false;
+        updateButtonStates();
     });
     
     // End turn button click handler
     endTurnBtn.addEventListener('click', () => {
+        addLogEntry(`Player ${state.currentPlayer} ends their turn`, ['turn-end']);
+        originalPosition = null;
         nextTurn();
+        updateButtonStates();
     });
+
+    // Initial button state
+    updateButtonStates();
 }
 
 // Handle clicks on battlefield cells
 function handleCellClick(cell, state) {
     // Phase 1: Select a character
     if (state.phase === 'select') {
-        // Find a character at the clicked cell
         const character = state.characters.find(c => 
             c.position.x === cell.x && 
             c.position.y === cell.y &&
@@ -112,21 +155,23 @@ function handleCellClick(cell, state) {
     else if (state.phase === 'move') {
         if (!state.selectedCharacter) return;
         
-        // Check if the move is valid
         const validMoves = state.selectedCharacter.getValidMoves(state.battlefield);
         const isValidMove = validMoves.some(move => move.x === cell.x && move.y === cell.y);
         
         if (isValidMove) {
+            const oldPos = {...state.selectedCharacter.position};
             state.selectedCharacter.move(cell);
-            state.phase = 'select';
+            state.selectedCharacter.isAtOriginalPosition = 
+                cell.x === originalPosition?.x && cell.y === originalPosition?.y;
             updateCharacterInfo(state.selectedCharacter);
+            
+            // Only log final moves when Done is clicked
         }
     }
     // Phase 3: Attack with the selected character
     else if (state.phase === 'attack') {
         if (!state.selectedCharacter) return;
         
-        // Get valid attack targets
         const validAttacks = state.selectedCharacter.getValidAttacks(
             state.battlefield, 
             state.characters
@@ -135,7 +180,6 @@ function handleCellClick(cell, state) {
         const isValidTarget = validAttacks.some(attack => attack.x === cell.x && attack.y === cell.y);
         
         if (isValidTarget) {
-            // Find the target character
             const targetCharacter = state.characters.find(c => 
                 c.position.x === cell.x && 
                 c.position.y === cell.y &&
@@ -145,9 +189,16 @@ function handleCellClick(cell, state) {
             if (targetCharacter) {
                 const result = state.selectedCharacter.attack(targetCharacter);
                 displayCombatResult(result, targetCharacter);
-                
-                state.phase = 'select';
+                state.selectedCharacter.hasAttacked = true;
                 updateCharacterInfo(state.selectedCharacter);
+                
+                // Log the attack result
+                const hitMiss = result.hit ? 'Hit' : 'Miss';
+                const damageText = result.hit ? ` for ${result.damage} damage` : '';
+                addLogEntry(
+                    `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} attacks ${targetCharacter.class.name} - ${hitMiss}${damageText}`,
+                    ['attack', result.hit ? 'hit' : 'miss']
+                );
             }
         }
     }
@@ -162,11 +213,13 @@ function updateCharacterInfo(character) {
         return;
     }
     
+    const position = toGridCoord(character.position.x, character.position.y);
+    
     let html = `
         <p><strong>Name:</strong> ${character.name}</p>
         <p><strong>Class:</strong> ${character.class.name}</p>
         <p><strong>Health:</strong> ${character.health}/${character.class.healthPoints}</p>
-        <p><strong>Position:</strong> (${character.position.x}, ${character.position.y})</p>
+        <p><strong>Position:</strong> ${position}</p>
         <p><strong>Actions:</strong> `;
         
     if (character.hasMoved) {

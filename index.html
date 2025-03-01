@@ -15,14 +15,22 @@
             </div>
         </div>
         
-        <div class="battlefield-container">
-            <canvas id="battlefield" width="800" height="600"></canvas>
+        <div class="game-main">
+            <div class="battlefield-container">
+                <canvas id="battlefield" width="800" height="600"></canvas>
+            </div>
+            
+            <div class="game-log">
+                <h3>Battle Log</h3>
+                <div id="log-entries" class="log-entries"></div>
+            </div>
         </div>
         
         <div class="controls">
             <div class="action-buttons">
                 <button id="move-btn" class="action-btn">Move</button>
                 <button id="attack-btn" class="action-btn">Attack</button>
+                <button id="done-btn" class="action-btn">Done</button>
                 <button id="end-turn-btn" class="action-btn">End Turn</button>
             </div>
             <div class="character-info">
