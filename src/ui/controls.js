@@ -132,6 +132,38 @@ export function setupControls(state) {
         updateButtonStates();
     });
 
+    // Handle attack
+    canvas.addEventListener('click', (event) => {
+        if (state.phase !== 'attack' || !state.selectedCharacter) return;
+        
+        const cell = state.battlefield.getCellFromPosition(event.offsetX, event.offsetY);
+        if (!cell) return;
+        
+        const validAttacks = state.selectedCharacter.getValidAttacks(state.battlefield, state.characters);
+        if (!validAttacks.some(pos => pos.x === cell.x && pos.y === cell.y)) return;
+        
+        const targetCharacter = state.characters.find(c => 
+            c.position.x === cell.x && 
+            c.position.y === cell.y && 
+            c.playerId !== state.currentPlayer
+        );
+        
+        if (!targetCharacter) return;
+        
+        // Get the ability being used
+        const ability = state.selectedCharacter.abilities[0];  // Currently using first ability
+        const result = state.selectedCharacter.attack(targetCharacter);
+        
+        // Update log with ability name
+        const hitMiss = result.hit ? 'Hit!' : 'Miss!';
+        const damageText = result.hit ? ` (${result.damage} damage)` : '';
+        addLogEntry(`Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} on ${targetCharacter.class.name} - ${hitMiss}${damageText}`);
+        
+        state.phase = 'select';
+        updateButtonStates();
+        state.battlefield.render();
+    });
+
     // Initial button state
     updateButtonStates();
 }
@@ -195,8 +227,9 @@ function handleCellClick(cell, state) {
                 // Log the attack result
                 const hitMiss = result.hit ? 'Hit' : 'Miss';
                 const damageText = result.hit ? ` for ${result.damage} damage` : '';
+                const ability = state.selectedCharacter.abilities[0]; // Default to first ability for now
                 addLogEntry(
-                    `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} attacks ${targetCharacter.class.name} - ${hitMiss}${damageText}`,
+                    `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} on ${targetCharacter.class.name} - ${hitMiss}${damageText}`,
                     ['attack', result.hit ? 'hit' : 'miss']
                 );
             }

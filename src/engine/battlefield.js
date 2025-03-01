@@ -136,16 +136,25 @@ export class Battlefield {
     // Highlight cells for valid moves or attacks
     highlightCells(cells, className) {
         const highlightColors = {
-            'move-highlight': 'rgba(76, 175, 80, 0.3)',  // Green for moves
+            'move-highlight': 'rgba(135, 206, 235, 0.3)',  // Light blue for moves
             'attack-highlight': 'rgba(244, 67, 54, 0.3)'  // Red for attacks
         };
 
-        this.ctx.fillStyle = highlightColors[className];
-        
         for (const cell of cells) {
             const x = this.gridOffsetX + cell.x * this.cellSize;
             const y = this.gridOffsetY + cell.y * this.cellSize;
+            
+            // Fill the cell
+            this.ctx.fillStyle = highlightColors[className];
             this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
+            
+            // Draw thick border for move highlights
+            if (className === 'move-highlight') {
+                this.ctx.strokeStyle = 'rgba(135, 206, 235, 0.8)';
+                this.ctx.lineWidth = 3;
+                this.ctx.strokeRect(x, y, this.cellSize, this.cellSize);
+                this.ctx.lineWidth = 1;  // Reset line width
+            }
         }
     }
     

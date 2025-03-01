@@ -89,13 +89,13 @@ function render() {
     // Highlight valid moves if a character is selected
     if (state.selectedCharacter && state.phase === 'move') {
         const validMoves = state.selectedCharacter.getValidMoves(state.battlefield);
-        state.battlefield.highlightCells(validMoves, 'valid-move');
+        state.battlefield.highlightCells(validMoves, 'move-highlight');
     }
     
     // Highlight valid attacks if in attack phase
     if (state.selectedCharacter && state.phase === 'attack') {
         const validAttacks = state.selectedCharacter.getValidAttacks(state.battlefield, state.characters);
-        state.battlefield.highlightCells(validAttacks, 'valid-attack');
+        state.battlefield.highlightCells(validAttacks, 'attack-highlight');
     }
 }
 
