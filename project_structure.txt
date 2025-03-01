@@ -1,0 +1,22 @@
+    battl-3/
+├── index.html            # Main entry point
+├── styles/               # CSS styles
+│   └── main.css          # Main stylesheet
+├── assets/               # Game assets
+│   ├── characters/       # Character images
+│   └── tiles/            # Battlefield tiles
+├── src/                  # Source code
+│   ├── game.js           # Main game controller
+│   ├── engine/           # Core game engine
+│   │   ├── battlefield.js  # Battlefield grid and rendering
+│   │   ├── character.js    # Character class and logic
+│   │   ├── abilities.js    # Abilities and combat
+│   │   └── dice.js         # D20 dice system
+│   ├── data/             # Game data
+│   │   ├── classes.js      # Character class definitions
+│   │   ├── abilities.js    # Ability definitions
+│   │   └── maps.js         # Battlefield maps with movement costs
+│   └── ui/               # User interface components
+│       ├── controls.js     # Game controls and event handlers
+│       └── hud.js          # HUD elements (health bars, turn indicator)
+└── package.json          # Project dependencies

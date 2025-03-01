@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battl-3: Tactical RPG</title>
+    <link rel="stylesheet" href="./styles/main.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>Battl-3</h1>
+            <div class="turn-info">
+                <span id="current-turn">Current Turn: Player 1</span>
+            </div>
+        </div>
+        
+        <div class="battlefield-container">
+            <canvas id="battlefield" width="800" height="600"></canvas>
+        </div>
+        
+        <div class="controls">
+            <div class="action-buttons">
+                <button id="move-btn" class="action-btn">Move</button>
+                <button id="attack-btn" class="action-btn">Attack</button>
+                <button id="end-turn-btn" class="action-btn">End Turn</button>
+            </div>
+            <div class="character-info">
+                <h3>Selected Character</h3>
+                <div id="character-stats"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game scripts -->
+    <script type="module" src="./src/game.js"></script>
+</body>
+</html>

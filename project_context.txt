@@ -1,0 +1,143 @@
+# Battl-3: D20-Based Tactical RPG Project Summary
+
+## Project Overview
+
+Battl-3 is a browser-based tactical RPG game that combines D20 mechanics with grid-based tactical gameplay. The game features a "bring your own NFT" approach, allowing players to use their own Ethereum NFTs as character avatars without affecting gameplay mechanics. The core design emphasizes simplicity and accessibility while maintaining strategic depth.
+
+## Game Mechanics
+
+### Character System
+The game features three character classes:
+- **Mage**: Specializes in ranged magical attacks with bonuses against Fighters
+- **Fighter**: Melee specialist with high health and armor, effective against Rangers
+- **Ranger**: Skilled with ranged physical attacks that counter Mages
+
+Each character class has distinct statistics including movement range, attack modifiers, armor class, health points, and save values. These properties determine how characters perform in combat and interact with the game's combat triangle system.
+
+### Combat Triangle
+A balanced gameplay system where each class has advantages against another:
+- Mages have bonuses against Fighters
+- Fighters have bonuses against Rangers
+- Rangers have bonuses against Mages
+
+This creates a strategic layer where team composition matters and countering the opponent's choices becomes important.
+
+### Turn-Based Gameplay
+During each turn, players can:
+1. Make a MOVE action to change position within movement range
+2. Make a STANDARD action to use an ability
+3. Trade their STANDARD action for a second MOVE
+4. Skip one or both actions
+
+The order of actions is flexible, allowing for varied tactical approaches.
+
+### D20 Combat System
+Combat resolution uses a D20 system similar to tabletop RPGs like Dungeons & Dragons:
+- Attack rolls (d20 + modifiers) must meet or exceed the target's armor class to hit
+- Damage is fixed for each ability but can include bonuses based on class matchups
+- Some abilities allow saving throws to reduce damage
+- Critical hits and misses add randomness and excitement
+
+### Abilities
+Each character class has unique abilities with various properties:
+- **Range**: How far the ability can reach
+- **Radius**: Area of effect (0 for single target)
+- **Damage**: Base damage dealt
+- **Bonus Against**: Target class that takes additional damage
+- **Save Difficulty**: Threshold for targets to attempt damage reduction
+
+## Technical Implementation
+
+### Front-End Architecture
+- **Canvas-based Rendering**: Using HTML5 Canvas for the battlefield grid, characters, and effects
+- **Module-based Structure**: Organized into game engine, data, and UI components
+- **State Management**: Manages game state including character positions, health, and turn information
+
+### Main Components
+
+1. **Battlefield System**:
+   - Grid-based map with various terrain types
+   - Movement validation with terrain modifiers
+   - Cell highlighting for valid moves and attacks
+   - Character rendering with health indicators
+
+2. **Character Management**:
+   - Class-based character creation
+   - Movement and attack logic
+   - Ability resolution
+   - Health and status tracking
+
+3. **Game Logic**:
+   - Turn management
+   - Combat resolution with D20 dice system
+   - Win condition checking
+   - Action validation
+
+4. **User Interface**:
+   - Character selection controls
+   - Move and attack buttons
+   - Character information panel
+   - Turn and phase indicators
+
+### Data Structure
+The game data is organized into:
+- Class definitions with statistics
+- Ability definitions with effects and requirements
+- Map definitions with terrain types and movement costs
+
+## Project Structure
+
+The codebase is organized as follows:
+
+```
+battl-3/
+├── index.html            # Main entry point
+├── styles/               # CSS styles
+│   └── main.css          # Main stylesheet
+├── assets/               # Game assets
+│   ├── characters/       # Character images
+│   └── tiles/            # Battlefield tiles
+├── src/                  # Source code
+│   ├── game.js           # Main game controller
+│   ├── engine/           # Core game engine
+│   │   ├── battlefield.js  # Battlefield grid and rendering
+│   │   ├── character.js    # Character class and logic
+│   │   ├── abilities.js    # Abilities and combat
+│   │   └── dice.js         # D20 dice system
+│   ├── data/             # Game data
+│   │   ├── classes.js      # Character class definitions
+│   │   ├── abilities.js    # Ability definitions
+│   │   └── maps.js         # Battlefield maps with movement costs
+│   └── ui/               # User interface components
+│       ├── controls.js     # Game controls and event handlers
+│       └── hud.js          # HUD elements (health bars, turn indicator)
+```
+
+## Future Integration Points
+
+While the current implementation focuses on core gameplay, the project roadmap includes:
+
+1. **Blockchain Integration**:
+   - NFT connections for character visuals
+   - Match recording on blockchain
+   - Game state verification
+
+2. **Multiplayer Features**:
+   - Server integration for online play
+   - ELO rankings
+   - Tournament support
+
+3. **Expansion Possibilities**:
+   - Additional character classes
+   - New abilities and battlefields
+   - League systems with different rulesets
+
+## Development Tools
+
+The project uses:
+- **Vite**: For development server and build process
+- **JavaScript ES6+**: For game logic implementation
+- **HTML5 Canvas**: For game rendering
+- **CSS3**: For styling the interface
+
+This implementation establishes a solid foundation for the tactical RPG mechanics outlined in the Battl-3 documentation, with room for expansion and integration with blockchain technology in later development phases.
