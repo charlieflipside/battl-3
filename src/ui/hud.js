@@ -41,13 +41,13 @@ function updateCharacterStats(state) {
     if (character.hasMoved) {
         html += '<span style="color: #888;">Move (Used)</span> ';
     } else {
-        html += '<span style="color: #00aa00;">Move (Available)</span> ';
+        html += '<span style="color:rgb(79, 126, 255);">Move (Available)</span> ';
     }
     
     if (character.hasAttacked) {
         html += '<span style="color: #888;">Attack (Used)</span>';
     } else {
-        html += '<span style="color: #00aa00;">Attack (Available)</span>';
+        html += '<span style="color:rgb(65, 132, 255);">Attack (Available)</span>';
     }
     
     html += '</p><p><strong>Abilities:</strong></p><ul>';
