@@ -22,6 +22,7 @@ export function setupControls(state) {
     const canvas = document.getElementById('battlefield');
     const moveBtn = document.getElementById('move-btn');
     const attackBtn = document.getElementById('attack-btn');
+    const specialBtn = document.getElementById('special-btn');
     const doneBtn = document.getElementById('done-btn');
     const endTurnBtn = document.getElementById('end-turn-btn');
     
@@ -29,18 +30,49 @@ export function setupControls(state) {
 
     // Track original position for move reversion
     let originalPosition = null;
+    let selectedAbilityIndex = 0; // Track which ability is selected (0 for standard, 1 for special)
     
     function updateButtonStates() {
-        // Disable/enable buttons based on state
-        moveBtn.disabled = !state.selectedCharacter || 
-                          (state.selectedCharacter.hasAttacked && !state.selectedCharacter.isAtOriginalPosition);
-        attackBtn.disabled = !state.selectedCharacter || state.selectedCharacter.hasAttacked;
+        if (!state.selectedCharacter) {
+            moveBtn.disabled = true;
+            attackBtn.disabled = true;
+            specialBtn.disabled = true;
+            doneBtn.disabled = true;
+            endTurnBtn.disabled = true;
+            return;
+        }
+
+        const char = state.selectedCharacter;
+        
+        // Move button is disabled if:
+        // - Character has moved and hit "Done"
+        // - Character has used special ability
+        // - Not current player's character
+        moveBtn.disabled = char.hasMoved || 
+                          (char.hasAttacked && char.abilities[selectedAbilityIndex]?.costMove) ||
+                          char.playerId !== state.currentPlayer;
+
+        // Attack button is disabled if:
+        // - Character has attacked
+        // - Not current player's character
+        attackBtn.disabled = char.hasAttacked || 
+                           char.playerId !== state.currentPlayer;
+
+        // Special button is disabled if:
+        // - Character has attacked
+        // - Character has moved
+        // - Not current player's character
+        specialBtn.disabled = char.hasAttacked || 
+                            char.hasMoved ||
+                            char.playerId !== state.currentPlayer;
+
         doneBtn.disabled = !state.selectedCharacter;
         endTurnBtn.disabled = !state.selectedCharacter;
 
         // Highlight active mode
         moveBtn.classList.toggle('active', state.phase === 'move');
-        attackBtn.classList.toggle('active', state.phase === 'attack');
+        attackBtn.classList.toggle('active', state.phase === 'attack' && selectedAbilityIndex === 0);
+        specialBtn.classList.toggle('active', state.phase === 'attack' && selectedAbilityIndex === 1);
 
         // Update visual state
         if (state.selectedCharacter) {
@@ -48,31 +80,19 @@ export function setupControls(state) {
                 const validMoves = state.selectedCharacter.getValidMoves(state.battlefield);
                 state.battlefield.highlightCells(validMoves, 'move-highlight');
             } else if (state.phase === 'attack') {
-                const validAttacks = state.selectedCharacter.getValidAttacks(state.battlefield, state.characters);
+                const validAttacks = state.selectedCharacter.getValidAttacks(
+                    state.battlefield, 
+                    state.characters,
+                    selectedAbilityIndex
+                );
                 state.battlefield.highlightCells(validAttacks, 'attack-highlight');
             }
         }
     }
     
-    // Canvas click handler
-    canvas.addEventListener('click', (event) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        
-        const cell = state.battlefield.getCellFromPosition(x, y);
-        if (!cell) return;
-        
-        handleCellClick(cell, state);
-        updateButtonStates();
-    });
-    
     // Move button click handler
     moveBtn.addEventListener('click', () => {
-        if (!state.selectedCharacter || 
-            (state.selectedCharacter.hasAttacked && !state.selectedCharacter.isAtOriginalPosition)) {
-            return;
-        }
+        if (!state.selectedCharacter || state.selectedCharacter.hasMoved) return;
         
         if (state.selectedCharacter.playerId !== state.currentPlayer) {
             alert('Not your character');
@@ -90,15 +110,28 @@ export function setupControls(state) {
     
     // Attack button click handler
     attackBtn.addEventListener('click', () => {
-        if (!state.selectedCharacter || state.selectedCharacter.hasAttacked) {
-            return;
-        }
+        if (!state.selectedCharacter || state.selectedCharacter.hasAttacked) return;
         
         if (state.selectedCharacter.playerId !== state.currentPlayer) {
             alert('Not your character');
             return;
         }
         
+        selectedAbilityIndex = 0; // Standard attack
+        state.phase = 'attack';
+        updateButtonStates();
+    });
+
+    // Special button click handler
+    specialBtn.addEventListener('click', () => {
+        if (!state.selectedCharacter || state.selectedCharacter.hasAttacked || state.selectedCharacter.hasMoved) return;
+        
+        if (state.selectedCharacter.playerId !== state.currentPlayer) {
+            alert('Not your character');
+            return;
+        }
+        
+        selectedAbilityIndex = 1; // Special attack
         state.phase = 'attack';
         updateButtonStates();
     });
@@ -107,15 +140,17 @@ export function setupControls(state) {
     doneBtn.addEventListener('click', () => {
         if (!state.selectedCharacter) return;
         
-        // Commit the current state
-        if (state.selectedCharacter.position.x !== originalPosition?.x || 
-            state.selectedCharacter.position.y !== originalPosition?.y) {
-            state.selectedCharacter.hasMoved = true;
-            const newPos = toGridCoord(state.selectedCharacter.position.x, state.selectedCharacter.position.y);
-            addLogEntry(
-                `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} moves to ${newPos}`,
-                ['move']
-            );
+        if (state.phase === 'move') {
+            // Commit the move
+            if (state.selectedCharacter.position.x !== originalPosition?.x || 
+                state.selectedCharacter.position.y !== originalPosition?.y) {
+                state.selectedCharacter.hasMoved = true;
+                const newPos = toGridCoord(state.selectedCharacter.position.x, state.selectedCharacter.position.y);
+                addLogEntry(
+                    `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} moves to ${newPos}`,
+                    ['move']
+                );
+            }
         }
         
         state.phase = 'select';
@@ -132,36 +167,17 @@ export function setupControls(state) {
         updateButtonStates();
     });
 
-    // Handle attack
+    // Handle cell clicks
     canvas.addEventListener('click', (event) => {
-        if (state.phase !== 'attack' || !state.selectedCharacter) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
         
-        const cell = state.battlefield.getCellFromPosition(event.offsetX, event.offsetY);
+        const cell = state.battlefield.getCellFromPosition(x, y);
         if (!cell) return;
         
-        const validAttacks = state.selectedCharacter.getValidAttacks(state.battlefield, state.characters);
-        if (!validAttacks.some(pos => pos.x === cell.x && pos.y === cell.y)) return;
-        
-        const targetCharacter = state.characters.find(c => 
-            c.position.x === cell.x && 
-            c.position.y === cell.y && 
-            c.playerId !== state.currentPlayer
-        );
-        
-        if (!targetCharacter) return;
-        
-        // Get the ability being used
-        const ability = state.selectedCharacter.abilities[0];  // Currently using first ability
-        const result = state.selectedCharacter.attack(targetCharacter);
-        
-        // Update log with ability name
-        const hitMiss = result.hit ? 'Hit!' : 'Miss!';
-        const damageText = result.hit ? ` (${result.damage} damage)` : '';
-        addLogEntry(`Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} on ${targetCharacter.class.name} - ${hitMiss}${damageText}`);
-        
-        state.phase = 'select';
+        handleCellClick(cell, state, selectedAbilityIndex);
         updateButtonStates();
-        state.battlefield.render();
     });
 
     // Initial button state
@@ -169,7 +185,7 @@ export function setupControls(state) {
 }
 
 // Handle clicks on battlefield cells
-function handleCellClick(cell, state) {
+function handleCellClick(cell, state, selectedAbilityIndex) {
     // Phase 1: Select a character
     if (state.phase === 'select') {
         const character = state.characters.find(c => 
@@ -196,8 +212,6 @@ function handleCellClick(cell, state) {
             state.selectedCharacter.isAtOriginalPosition = 
                 cell.x === originalPosition?.x && cell.y === originalPosition?.y;
             updateCharacterInfo(state.selectedCharacter);
-            
-            // Only log final moves when Done is clicked
         }
     }
     // Phase 3: Attack with the selected character
@@ -206,7 +220,8 @@ function handleCellClick(cell, state) {
         
         const validAttacks = state.selectedCharacter.getValidAttacks(
             state.battlefield, 
-            state.characters
+            state.characters,
+            selectedAbilityIndex
         );
         
         const isValidTarget = validAttacks.some(attack => attack.x === cell.x && attack.y === cell.y);
@@ -219,19 +234,27 @@ function handleCellClick(cell, state) {
             );
             
             if (targetCharacter) {
-                const result = state.selectedCharacter.attack(targetCharacter);
-                displayCombatResult(result, targetCharacter);
-                state.selectedCharacter.hasAttacked = true;
-                updateCharacterInfo(state.selectedCharacter);
+                const ability = state.selectedCharacter.abilities[selectedAbilityIndex];
+                const result = state.selectedCharacter.attack(targetCharacter, selectedAbilityIndex);
                 
-                // Log the attack result
-                const hitMiss = result.hit ? 'Hit' : 'Miss';
-                const damageText = result.hit ? ` for ${result.damage} damage` : '';
-                const ability = state.selectedCharacter.abilities[0]; // Default to first ability for now
-                addLogEntry(
-                    `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} on ${targetCharacter.class.name} - ${hitMiss}${damageText}`,
-                    ['attack', result.hit ? 'hit' : 'miss']
-                );
+                if (result) {
+                    // Mark actions as used
+                    state.selectedCharacter.hasAttacked = true;
+                    if (ability.costMove) {
+                        state.selectedCharacter.hasMoved = true;
+                    }
+                    
+                    // Log the attack
+                    const hitMiss = result.hit ? 'Hit' : 'Miss';
+                    const damageText = result.hit ? ` for ${result.damage} damage` : '';
+                    addLogEntry(
+                        `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} on ${targetCharacter.class.name} - ${hitMiss}${damageText}`,
+                        ['attack', result.hit ? 'hit' : 'miss']
+                    );
+                    
+                    state.phase = 'select';
+                    updateCharacterInfo(state.selectedCharacter);
+                }
             }
         }
     }
@@ -269,8 +292,9 @@ function updateCharacterInfo(character) {
     
     html += '</p><p><strong>Abilities:</strong></p><ul>';
     
-    character.abilities.forEach(ability => {
-        html += `<li>${ability.displayName} - Range: ${ability.range}, Damage: ${ability.damage}</li>`;
+    character.abilities.forEach((ability, index) => {
+        const actionCost = ability.costMove ? 'Full Round' : 'Standard';
+        html += `<li>${ability.displayName} - Range: ${ability.range}, Damage: ${ability.damage} (${actionCost})</li>`;
     });
     
     html += '</ul>';

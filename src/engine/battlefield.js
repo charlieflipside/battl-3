@@ -230,7 +230,12 @@ export class Battlefield {
     highlightCells(cells, className) {
         const highlightColors = {
             'move-highlight': 'rgba(135, 206, 235, 0.3)',  // Light blue for moves
-            'attack-highlight': 'rgba(244, 67, 54, 0.3)'  // Red for attacks
+            'attack-highlight': 'rgba(244, 67, 54, 0.2)'   // Light red for attacks
+        };
+
+        const borderColors = {
+            'move-highlight': 'rgba(135, 206, 235, 0.8)',  // Darker blue for move borders
+            'attack-highlight': 'rgba(244, 67, 54, 0.6)'   // Darker red for attack borders
         };
 
         for (const cell of cells) {
@@ -241,13 +246,11 @@ export class Battlefield {
             this.ctx.fillStyle = highlightColors[className];
             this.ctx.fillRect(x, y, this.cellSize, this.cellSize);
             
-            // Draw thick border for move highlights
-            if (className === 'move-highlight') {
-                this.ctx.strokeStyle = 'rgba(135, 206, 235, 0.8)';
-                this.ctx.lineWidth = 3;
-                this.ctx.strokeRect(x, y, this.cellSize, this.cellSize);
-                this.ctx.lineWidth = 1;  // Reset line width
-            }
+            // Draw thick border for both moves and attacks
+            this.ctx.strokeStyle = borderColors[className];
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(x, y, this.cellSize, this.cellSize);
+            this.ctx.lineWidth = 1;  // Reset line width
         }
     }
     
