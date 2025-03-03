@@ -243,6 +243,9 @@ function handleCellClick(cell, state, selectedAbilityIndex) {
             
             // For area effect abilities
             if (ability.radius > 0) {
+                // Show the area effect animation
+                showAttackEffect(cell, ability, state.battlefield);
+                
                 // Find all targets in radius
                 const targets = state.characters.filter(c => {
                     if (c.playerId === state.selectedCharacter.playerId || c.health <= 0) return false;
@@ -309,6 +312,9 @@ function handleCellClick(cell, state, selectedAbilityIndex) {
                 );
                 
                 if (targetCharacter) {
+                    // Show the single target animation
+                    showAttackEffect(cell, ability, state.battlefield);
+                    
                     const result = state.selectedCharacter.attack(targetCharacter, selectedAbilityIndex);
                     
                     if (result) {
@@ -429,3 +435,75 @@ function displayCombatResult(result, target) {
         message.remove();
     }, 2000);
 }
+
+// Display an attack animation effect
+function showAttackEffect(cell, ability, battlefield) {
+    const effect = document.createElement('div');
+    effect.className = 'attack-effect';
+    
+    // Set the icon based on the ability
+    effect.textContent = ability.icon;
+    
+    // Position the effect
+    const canvas = document.getElementById('battlefield');
+    const rect = canvas.getBoundingClientRect();
+    const cellSize = battlefield.cellSize;
+    
+    effect.style.position = 'absolute';
+    effect.style.transformOrigin = 'center center';
+    
+    // For area effects, make the effect larger
+    if (ability.radius > 0) {
+        const size = Math.ceil(ability.radius / 10) * 2 + 1; // Convert radius to grid squares
+        const effectSize = cellSize * size;
+        effect.style.width = effectSize + 'px';
+        effect.style.height = effectSize + 'px';
+        // Center on the target cell by offsetting by half the size difference
+        effect.style.left = (rect.left + cell.x * cellSize - (effectSize - cellSize) / 2) + 'px';
+        effect.style.top = (rect.top + cell.y * cellSize - (effectSize - cellSize) / 2) + 'px';
+        effect.style.fontSize = '48px';
+        effect.style.backgroundColor = 'rgba(255, 100, 0, 0.2)';
+        effect.style.borderRadius = '50%';
+    } else {
+        // For single target, center in the cell
+        effect.style.width = cellSize + 'px';
+        effect.style.height = cellSize + 'px';
+        effect.style.left = (rect.left + cell.x * cellSize) + 'px';
+        effect.style.top = (rect.top + cell.y * cellSize) + 'px';
+        effect.style.fontSize = '24px';
+        effect.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+    }
+    
+    effect.style.display = 'flex';
+    effect.style.alignItems = 'center';
+    effect.style.justifyContent = 'center';
+    effect.style.animation = 'attack-flash 0.5s ease-out';
+    
+    document.body.appendChild(effect);
+    
+    // Remove after animation
+    setTimeout(() => {
+        effect.remove();
+    }, 500);
+}
+
+// Add CSS animation to head
+const style = document.createElement('style');
+style.textContent = `
+@keyframes attack-flash {
+    0% {
+        opacity: 1;
+        transform: scale(0.8);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.5);
+    }
+}
+
+.attack-effect {
+    pointer-events: none;
+    z-index: 1000;
+}
+`;
+document.head.appendChild(style);
