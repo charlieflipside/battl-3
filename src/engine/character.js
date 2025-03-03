@@ -128,20 +128,24 @@ export class Character {
         }
         
         const attackRoll = rollD20() + attackModifier;
+        const baseDamage = ability.damage;
+        let bonusDamage = 0;
+        let saveRoll = 0;
         
         // Check if attack hits (meets or exceeds target's armor class)
         if (attackRoll >= target.class.armorCheck) {
-            // Calculate damage
-            let damage = ability.damage;
+            // Calculate base damage plus any bonuses
+            let damage = baseDamage;
             
             // Apply bonus damage if applicable
             if (target.class.name === ability.bonusAgainst) {
-                damage += ability.bonusAmount;
+                bonusDamage = ability.bonusAmount;
+                damage += bonusDamage;
             }
             
             // Apply save if ability has save difficulty
             if (ability.saveDifficulty > 0) {
-                const saveRoll = rollD20() + target.class.save;
+                saveRoll = rollD20() + target.class.save;
                 if (saveRoll >= ability.saveDifficulty) {
                     // Success - half damage
                     damage = Math.floor(damage / 2);
@@ -149,19 +153,27 @@ export class Character {
             }
             
             // Apply damage to target
+            const oldHealth = target.health;
             target.health = Math.max(0, target.health - damage);
             
-            this.hasAttacked = true;
             return {
                 hit: true,
-                damage,
+                attackRoll,
+                baseDamage,
+                bonusDamage,
+                damage: oldHealth - target.health,
+                saveRoll,
                 targetDied: target.health <= 0
             };
         } else {
-            this.hasAttacked = true;
             return {
                 hit: false,
-                damage: 0
+                attackRoll,
+                baseDamage,
+                bonusDamage: 0,
+                damage: 0,
+                saveRoll: 0,
+                targetDied: false
             };
         }
     }

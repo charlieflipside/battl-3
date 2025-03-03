@@ -12,9 +12,21 @@ function addLogEntry(message, classes = []) {
     const logEntries = document.getElementById('log-entries');
     const entry = document.createElement('div');
     entry.className = 'log-entry ' + classes.join(' ');
-    entry.textContent = message;
+    
+    // Handle multiline messages
+    if (message.includes('\n')) {
+        message.split('\n').forEach((line, index) => {
+            if (index > 0) {
+                entry.appendChild(document.createElement('br'));
+            }
+            entry.appendChild(document.createTextNode(line));
+        });
+    } else {
+        entry.textContent = message;
+    }
+    
     logEntries.appendChild(entry);
-    logEntries.scrollTop = logEntries.scrollHeight; // Auto-scroll to bottom
+    logEntries.scrollTop = logEntries.scrollHeight;
 }
 
 // Set up all the UI controls and event handlers
@@ -227,33 +239,113 @@ function handleCellClick(cell, state, selectedAbilityIndex) {
         const isValidTarget = validAttacks.some(attack => attack.x === cell.x && attack.y === cell.y);
         
         if (isValidTarget) {
-            const targetCharacter = state.characters.find(c => 
-                c.position.x === cell.x && 
-                c.position.y === cell.y &&
-                c.health > 0
-            );
+            const ability = state.selectedCharacter.abilities[selectedAbilityIndex];
             
-            if (targetCharacter) {
-                const ability = state.selectedCharacter.abilities[selectedAbilityIndex];
-                const result = state.selectedCharacter.attack(targetCharacter, selectedAbilityIndex);
+            // For area effect abilities
+            if (ability.radius > 0) {
+                // Find all targets in radius
+                const targets = state.characters.filter(c => {
+                    if (c.playerId === state.selectedCharacter.playerId || c.health <= 0) return false;
+                    const dx = c.position.x - cell.x;
+                    const dy = c.position.y - cell.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy) * 10;
+                    return distance <= ability.radius;
+                });
                 
-                if (result) {
-                    // Mark actions as used
+                if (targets.length > 0) {
+                    // Log the area attack header
+                    addLogEntry(
+                        `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} at ${toGridCoord(cell.x, cell.y)}`,
+                        ['attack']
+                    );
+                    
+                    // Attack each target in the area
+                    targets.forEach(targetCharacter => {
+                        const result = state.selectedCharacter.attack(targetCharacter, selectedAbilityIndex);
+                        
+                        if (result) {
+                            const hitMiss = result.hit ? 'Hit!' : 'Miss';
+                            let message = `→ ${targetCharacter.class.name}: ${hitMiss}`;
+                            
+                            if (result.hit) {
+                                message += ` (${result.baseDamage}`;
+                                if (result.bonusDamage > 0) {
+                                    message += ` + ${result.bonusDamage} bonus`;
+                                }
+                                message += ' damage)';
+                                
+                                if (ability.saveDifficulty > 0) {
+                                    const saveSuccess = result.saveRoll >= ability.saveDifficulty;
+                                    message += `\n  Save: ${result.saveRoll} vs DC ${ability.saveDifficulty} (${saveSuccess ? 'Success - Half damage' : 'Failure'})`;
+                                }
+                                
+                                message += `\n  Health: ${targetCharacter.health}/${targetCharacter.class.healthPoints}`;
+                                
+                                if (targetCharacter.health <= 0) {
+                                    message += '\n  Defeated!';
+                                }
+                            }
+                            
+                            addLogEntry(message, ['attack', result.hit ? 'hit' : 'miss']);
+                        }
+                    });
+                    
+                    // Mark actions as used after all targets are hit
                     state.selectedCharacter.hasAttacked = true;
                     if (ability.costMove) {
                         state.selectedCharacter.hasMoved = true;
                     }
                     
-                    // Log the attack
-                    const hitMiss = result.hit ? 'Hit' : 'Miss';
-                    const damageText = result.hit ? ` for ${result.damage} damage` : '';
-                    addLogEntry(
-                        `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} on ${targetCharacter.class.name} - ${hitMiss}${damageText}`,
-                        ['attack', result.hit ? 'hit' : 'miss']
-                    );
-                    
                     state.phase = 'select';
                     updateCharacterInfo(state.selectedCharacter);
+                }
+            }
+            // For single target abilities
+            else {
+                const targetCharacter = state.characters.find(c => 
+                    c.position.x === cell.x && 
+                    c.position.y === cell.y &&
+                    c.health > 0
+                );
+                
+                if (targetCharacter) {
+                    const result = state.selectedCharacter.attack(targetCharacter, selectedAbilityIndex);
+                    
+                    if (result) {
+                        // Mark actions as used
+                        state.selectedCharacter.hasAttacked = true;
+                        if (ability.costMove) {
+                            state.selectedCharacter.hasMoved = true;
+                        }
+                        
+                        // Log the attack
+                        const hitMiss = result.hit ? 'Hit!' : 'Miss';
+                        let message = `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} on ${targetCharacter.class.name} - ${hitMiss}`;
+                        
+                        if (result.hit) {
+                            message += ` (${result.baseDamage}`;
+                            if (result.bonusDamage > 0) {
+                                message += ` + ${result.bonusDamage} bonus`;
+                            }
+                            message += ' damage)';
+                            
+                            if (ability.saveDifficulty > 0) {
+                                const saveSuccess = result.saveRoll >= ability.saveDifficulty;
+                                message += `\nSave: ${result.saveRoll} vs DC ${ability.saveDifficulty} (${saveSuccess ? 'Success - Half damage' : 'Failure'})`;
+                            }
+                            
+                            message += `\nHealth: ${targetCharacter.health}/${targetCharacter.class.healthPoints}`;
+                            
+                            if (targetCharacter.health <= 0) {
+                                message += '\nDefeated!';
+                            }
+                        }
+                        
+                        addLogEntry(message, ['attack', result.hit ? 'hit' : 'miss']);
+                        
+                        state.phase = 'select';
+                        updateCharacterInfo(state.selectedCharacter);
+                    }
                 }
             }
         }
