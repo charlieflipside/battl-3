@@ -94,7 +94,14 @@ function render() {
     
     // Highlight valid attacks if in attack phase
     if (state.selectedCharacter && state.phase === 'attack') {
-        const validAttacks = state.selectedCharacter.getValidAttacks(state.battlefield, state.characters);
+        // Get the current ability index from the UI
+        const abilityIndex = document.getElementById('special-btn').classList.contains('active') ? 1 : 0;
+        
+        const validAttacks = state.selectedCharacter.getValidAttacks(
+            state.battlefield, 
+            state.characters,
+            abilityIndex
+        );
         state.battlefield.highlightCells(validAttacks, 'attack-highlight');
     }
 }

@@ -131,6 +131,15 @@ export function setupControls(state) {
         
         selectedAbilityIndex = 0; // Standard attack
         state.phase = 'attack';
+        
+        // Force a redraw to show attack highlights
+        const validAttacks = state.selectedCharacter.getValidAttacks(
+            state.battlefield, 
+            state.characters,
+            selectedAbilityIndex
+        );
+        state.battlefield.highlightCells(validAttacks, 'attack-highlight');
+        
         updateButtonStates();
     });
 
@@ -145,6 +154,15 @@ export function setupControls(state) {
         
         selectedAbilityIndex = 1; // Special attack
         state.phase = 'attack';
+        
+        // Force a redraw to show attack highlights
+        const validAttacks = state.selectedCharacter.getValidAttacks(
+            state.battlefield, 
+            state.characters,
+            selectedAbilityIndex
+        );
+        state.battlefield.highlightCells(validAttacks, 'attack-highlight');
+        
         updateButtonStates();
     });
 
@@ -248,112 +266,133 @@ function handleCellClick(cell, state, selectedAbilityIndex) {
                 
                 // Find all targets in radius
                 const targets = state.characters.filter(c => {
-                    if (c.playerId === state.selectedCharacter.playerId || c.health <= 0) return false;
-                    const dx = c.position.x - cell.x;
-                    const dy = c.position.y - cell.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy) * 10;
+                    if (c.health <= 0 || c.playerId === state.selectedCharacter.playerId) return false;
+                    
+                    const distance = Math.sqrt(
+                        Math.pow(c.position.x - cell.x, 2) + 
+                        Math.pow(c.position.y - cell.y, 2)
+                    ) * 10;
+                    
                     return distance <= ability.radius;
                 });
                 
-                if (targets.length > 0) {
-                    // Log the area attack header
-                    addLogEntry(
-                        `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} at ${toGridCoord(cell.x, cell.y)}`,
-                        ['attack']
-                    );
+                // Log the area attack header
+                addLogEntry(
+                    `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} at ${toGridCoord(cell.x, cell.y)}`,
+                    ['attack']
+                );
+                
+                // If no targets in area, still log it
+                if (targets.length === 0) {
+                    addLogEntry(`→ No targets in area`, ['attack', 'miss']);
+                }
+                
+                // Apply damage to all targets
+                let hitAny = false;
+                
+                for (const target of targets) {
+                    const result = state.selectedCharacter.attack(target, selectedAbilityIndex);
+                    displayCombatResult(result, target);
+                    hitAny = hitAny || result.hit;
                     
-                    // Attack each target in the area
-                    targets.forEach(targetCharacter => {
-                        const result = state.selectedCharacter.attack(targetCharacter, selectedAbilityIndex);
-                        
-                        if (result) {
-                            const hitMiss = result.hit ? 'Hit!' : 'Miss';
-                            let message = `→ ${targetCharacter.class.name}: ${hitMiss}`;
-                            
-                            if (result.hit) {
-                                message += ` (${result.baseDamage}`;
-                                if (result.bonusDamage > 0) {
-                                    message += ` + ${result.bonusDamage} bonus`;
-                                }
-                                message += ' damage)';
-                                
-                                if (ability.saveDifficulty > 0) {
-                                    const saveSuccess = result.saveRoll >= ability.saveDifficulty;
-                                    message += `\n  Save: ${result.saveRoll} vs DC ${ability.saveDifficulty} (${saveSuccess ? 'Success - Half damage' : 'Failure'})`;
-                                }
-                                
-                                message += `\n  Health: ${targetCharacter.health}/${targetCharacter.class.healthPoints}`;
-                                
-                                if (targetCharacter.health <= 0) {
-                                    message += '\n  Defeated!';
-                                }
-                            }
-                            
-                            addLogEntry(message, ['attack', result.hit ? 'hit' : 'miss']);
+                    // Log detailed result for each target
+                    const hitMiss = result.hit ? 'Hit!' : 'Miss';
+                    let message = `→ ${target.class.name}: ${hitMiss}`;
+                    
+                    if (result.hit) {
+                        message += ` (${result.baseDamage}`;
+                        if (result.bonusDamage > 0) {
+                            message += ` + ${result.bonusDamage} bonus`;
                         }
-                    });
-                    
-                    // Mark actions as used after all targets are hit
-                    state.selectedCharacter.hasAttacked = true;
-                    if (ability.costMove) {
-                        state.selectedCharacter.hasMoved = true;
+                        message += ' damage)';
+                        
+                        if (ability.saveDifficulty > 0) {
+                            const saveSuccess = result.saveRoll >= ability.saveDifficulty;
+                            message += `\n  Save: ${result.saveRoll} vs DC ${ability.saveDifficulty} (${saveSuccess ? 'Success - Half damage' : 'Failure'})`;
+                        }
+                        
+                        message += `\n  Health: ${target.health}/${target.class.healthPoints}`;
+                        
+                        if (target.health <= 0) {
+                            message += '\n  Defeated!';
+                        }
                     }
                     
-                    state.phase = 'select';
-                    updateCharacterInfo(state.selectedCharacter);
+                    addLogEntry(message, ['attack', result.hit ? 'hit' : 'miss']);
                 }
-            }
+                
+                // Always mark ability as used, regardless of hits or targets
+                state.selectedCharacter.hasAttacked = true;
+                
+                // If ability costs movement, mark that too
+                if (ability.costMove) {
+                    state.selectedCharacter.hasMoved = true;
+                }
+                
+                // Return to select phase
+                state.phase = 'select';
+            } 
             // For single target abilities
             else {
-                const targetCharacter = state.characters.find(c => 
+                const target = state.characters.find(c => 
                     c.position.x === cell.x && 
                     c.position.y === cell.y &&
+                    c.playerId !== state.selectedCharacter.playerId &&
                     c.health > 0
                 );
                 
-                if (targetCharacter) {
-                    // Show the single target animation
-                    showAttackEffect(cell, ability, state.battlefield);
+                // Show the single target animation
+                showAttackEffect(cell, ability, state.battlefield);
+                
+                if (target) {
+                    const result = state.selectedCharacter.attack(target, selectedAbilityIndex);
+                    displayCombatResult(result, target);
                     
-                    const result = state.selectedCharacter.attack(targetCharacter, selectedAbilityIndex);
+                    // Log the attack with detailed information
+                    const hitMiss = result.hit ? 'Hit!' : 'Miss';
+                    let message = `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} on ${target.name} - ${hitMiss}`;
                     
-                    if (result) {
-                        // Mark actions as used
-                        state.selectedCharacter.hasAttacked = true;
-                        if (ability.costMove) {
-                            state.selectedCharacter.hasMoved = true;
+                    if (result.hit) {
+                        message += ` (${result.baseDamage}`;
+                        if (result.bonusDamage > 0) {
+                            message += ` + ${result.bonusDamage} bonus`;
+                        }
+                        message += ' damage)';
+                        
+                        if (ability.saveDifficulty > 0) {
+                            const saveSuccess = result.saveRoll >= ability.saveDifficulty;
+                            message += `\nSave: ${result.saveRoll} vs DC ${ability.saveDifficulty} (${saveSuccess ? 'Success - Half damage' : 'Failure'})`;
                         }
                         
-                        // Log the attack
-                        const hitMiss = result.hit ? 'Hit!' : 'Miss';
-                        let message = `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} on ${targetCharacter.class.name} - ${hitMiss}`;
+                        message += `\nHealth: ${target.health}/${target.class.healthPoints}`;
                         
-                        if (result.hit) {
-                            message += ` (${result.baseDamage}`;
-                            if (result.bonusDamage > 0) {
-                                message += ` + ${result.bonusDamage} bonus`;
-                            }
-                            message += ' damage)';
-                            
-                            if (ability.saveDifficulty > 0) {
-                                const saveSuccess = result.saveRoll >= ability.saveDifficulty;
-                                message += `\nSave: ${result.saveRoll} vs DC ${ability.saveDifficulty} (${saveSuccess ? 'Success - Half damage' : 'Failure'})`;
-                            }
-                            
-                            message += `\nHealth: ${targetCharacter.health}/${targetCharacter.class.healthPoints}`;
-                            
-                            if (targetCharacter.health <= 0) {
-                                message += '\nDefeated!';
-                            }
+                        if (target.health <= 0) {
+                            message += '\nDefeated!';
                         }
-                        
-                        addLogEntry(message, ['attack', result.hit ? 'hit' : 'miss']);
-                        
-                        state.phase = 'select';
-                        updateCharacterInfo(state.selectedCharacter);
                     }
+                    
+                    addLogEntry(message, ['attack', result.hit ? 'hit' : 'miss']);
+                } else {
+                    // Log missed attack when targeting an empty cell
+                    addLogEntry(
+                        `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} but misses (no target at ${toGridCoord(cell.x, cell.y)})`,
+                        ['attack', 'miss']
+                    );
                 }
+                
+                // Always mark ability as used, regardless of hit or miss or target presence
+                state.selectedCharacter.hasAttacked = true;
+                
+                // If ability costs movement, mark that too
+                if (ability.costMove) {
+                    state.selectedCharacter.hasMoved = true;
+                }
+                
+                // Return to select phase
+                state.phase = 'select';
             }
+            
+            updateCharacterInfo(state.selectedCharacter);
         }
     }
 }
