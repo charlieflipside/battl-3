@@ -8,6 +8,7 @@
 </head>
 <body>
     <div class="game-container">
+        <!-- Header -->
         <div class="game-header">
             <h1>Battl-3</h1>
             <div class="turn-info">
@@ -15,29 +16,46 @@
             </div>
         </div>
         
-        <div class="game-main">
-            <div class="battlefield-container">
-                <canvas id="battlefield" width="800" height="600"></canvas>
-            </div>
-            
-            <div class="game-log">
-                <h3>Battle Log</h3>
-                <div id="log-entries" class="log-entries"></div>
-            </div>
-        </div>
-        
-        <div class="controls">
-            <div class="action-buttons">
-                <button id="move-btn" class="action-btn">Move</button>
-                <button id="attack-btn" class="action-btn">Attack</button>
-                <button id="special-btn" class="action-btn">Special</button>
-                <button id="done-btn" class="action-btn">Done</button>
-                <button id="end-turn-btn" class="action-btn">End Turn</button>
-            </div>
-            <div class="character-info">
+        <!-- Character Info (Left Column) -->
+        <div class="character-info">
+            <div id="character-header">
                 <h3>Selected Character</h3>
                 <div id="character-stats"></div>
             </div>
+            
+            <!-- Action buttons -->
+            <div class="action-buttons">
+                <button id="move-btn" class="action-btn big-btn">
+                    <span>⟿</span> Move
+                </button>
+                <button id="attack-btn" class="action-btn big-btn">
+                    <span>⚔️</span> Attack
+                </button>
+                <button id="special-btn" class="action-btn big-btn">
+                    <span>✨</span> Special
+                </button>
+                <button id="done-btn" class="action-btn big-btn">
+                    <span>✓</span> Done
+                </button>
+            </div>
+            
+            <!-- End Turn button separated -->
+            <div class="end-turn-container">
+                <button id="end-turn-btn" class="action-btn big-btn">
+                    <span>➤</span> End Turn
+                </button>
+            </div>
+        </div>
+        
+        <!-- Battlefield (Center Column) -->
+        <div class="battlefield-container">
+            <canvas id="battlefield" width="800" height="600"></canvas>
+        </div>
+        
+        <!-- Battle Log (Right Column) -->
+        <div class="game-log">
+            <h3>Battle Log</h3>
+            <div id="log-entries" class="log-entries"></div>
         </div>
     </div>
 

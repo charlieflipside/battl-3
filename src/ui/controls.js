@@ -416,25 +416,37 @@ function updateCharacterInfo(character) {
         <p><strong>Actions:</strong> `;
         
     if (character.hasMoved) {
-        html += '<span class="action-used">Move (Used)</span> ';
+        html += `<span class="status-used">Move (Used)</span> `;
     } else {
-        html += '<span class="action-available">Move (Available)</span> ';
+        html += `<span class="status-available">Move (Available)</span> `;
     }
     
     if (character.hasAttacked) {
-        html += '<span class="action-used">Attack (Used)</span>';
+        html += `<span class="status-used">Attack (Used)</span>`;
     } else {
-        html += '<span class="action-available">Attack (Available)</span>';
+        html += `<span class="status-available">Attack (Available)</span>`;
     }
     
     html += '</p><p><strong>Abilities:</strong></p><ul>';
     
+    // Check if character has a special ability
+    let hasSpecialAbility = false;
+    
     character.abilities.forEach((ability, index) => {
-        const actionCost = ability.costMove ? 'Full Round' : 'Standard';
-        html += `<li>${ability.displayName} - Range: ${ability.range}, Damage: ${ability.damage} (${actionCost})</li>`;
+        if (ability.costMove) {
+            hasSpecialAbility = true;
+            html += `<li class="ability-item"><span class="ability-name">${ability.displayName}</span> - Range: ${ability.range}, Damage: ${ability.damage} <span class="special-ability">(Special)</span></li>`;
+        } else {
+            html += `<li class="ability-item"><span class="ability-name">${ability.displayName}</span> - Range: ${ability.range}, Damage: ${ability.damage} (Standard)</li>`;
+        }
     });
     
     html += '</ul>';
+    
+    // Add special note if character has a special ability
+    if (hasSpecialAbility) {
+        html += '<div class="special-note">Special Uses Move+Attack</div>';
+    }
     
     charStats.innerHTML = html;
 }
