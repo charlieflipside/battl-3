@@ -157,6 +157,15 @@ body {
     color: #666;
 }
 
+.log-entry.move-error {
+    color: #ff6600;
+    font-style: italic;
+}
+
+.log-entry.player-action {
+    color: #333;
+}
+
 #battlefield {
     display: block;
     background-color: #e0e0e0;
@@ -323,4 +332,89 @@ body {
     color: #ff0000;
     z-index: 10;
     text-shadow: 0 0 3px #000;
+}
+
+/* AI Controls */
+.ai-controls {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    padding: 0 15px;
+}
+
+.ai-toggle-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-right: 10px;
+    font-size: 14px;
+}
+
+.ai-toggle-label input {
+    margin-right: 5px;
+}
+
+#ai-difficulty {
+    padding: 3px 5px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    background-color: #f8f8f8;
+    font-size: 14px;
+}
+
+/* Add this to the game-header to make it flex */
+.game-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 15px;
+    background-color: #f0f0f0;
+    border-bottom: 1px solid #ddd;
+    height: 50px;
+}
+
+.turn-info {
+    margin-left: 20px;
+    font-weight: bold;
+}
+
+/* AI Log Entries */
+.log-entry.ai {
+    color: #0066cc;
+    font-style: italic;
+}
+
+.log-entry.ai-action {
+    color: #0066cc;
+    font-weight: bold;
+}
+
+.log-entry.turn-change {
+    color: #333;
+    font-weight: bold;
+    border-top: 1px solid #ddd;
+    padding-top: 5px;
+    margin-top: 5px;
+}
+
+.log-entry.turn-end {
+    color: #666;
+    font-style: italic;
+}
+
+/* AI Turn Indicator */
+body.ai-turn .battlefield-container {
+    position: relative;
+}
+
+body.ai-turn .battlefield-container::after {
+    content: "AI Turn";
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(0, 102, 204, 0.8);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    z-index: 100;
 }

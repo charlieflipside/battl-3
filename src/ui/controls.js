@@ -175,11 +175,15 @@ export function setupControls(state) {
             if (state.selectedCharacter.position.x !== originalPosition?.x || 
                 state.selectedCharacter.position.y !== originalPosition?.y) {
                 state.selectedCharacter.hasMoved = true;
-                const newPos = toGridCoord(state.selectedCharacter.position.x, state.selectedCharacter.position.y);
-                addLogEntry(
-                    `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} moves to ${newPos}`,
-                    ['move']
-                );
+                
+                // Log the move using standardized format
+                window.logStandardAction({
+                    type: 'move',
+                    actor: state.selectedCharacter,
+                    fromPosition: originalPosition,
+                    position: state.selectedCharacter.position,
+                    isAI: false
+                });
             }
         }
         
@@ -191,11 +195,45 @@ export function setupControls(state) {
     
     // End turn button click handler
     endTurnBtn.addEventListener('click', () => {
-        addLogEntry(`Player ${state.currentPlayer} ends their turn`, ['turn-end']);
+        // Log the end turn action
+        window.logStandardAction({
+            type: 'endTurn',
+            actor: { 
+                playerId: state.currentPlayer,
+                name: `Player ${state.currentPlayer + 1}`
+            },
+            isAI: false
+        });
+        
         originalPosition = null;
         nextTurn();
+        
+        // Disable controls during AI turn
+        if (state.currentPlayer === 1 && state.useAIForPlayer2) {
+            disableControlsDuringAITurn();
+        }
+        
         updateButtonStates();
     });
+
+    // Disable controls during AI turn
+    function disableControlsDuringAITurn() {
+        moveBtn.disabled = true;
+        attackBtn.disabled = true;
+        specialBtn.disabled = true;
+        doneBtn.disabled = true;
+        endTurnBtn.disabled = true;
+        
+        // Add visual indicator
+        document.body.classList.add('ai-turn');
+    }
+
+    // Re-enable controls after AI turn
+    window.enableControlsAfterAITurn = function() {
+        // Remove visual indicator
+        document.body.classList.remove('ai-turn');
+        updateButtonStates();
+    };
 
     // Handle cell clicks
     canvas.addEventListener('click', (event) => {
@@ -238,10 +276,16 @@ function handleCellClick(cell, state, selectedAbilityIndex) {
         
         if (isValidMove) {
             const oldPos = {...state.selectedCharacter.position};
-            state.selectedCharacter.move(cell);
-            state.selectedCharacter.isAtOriginalPosition = 
-                cell.x === originalPosition?.x && cell.y === originalPosition?.y;
-            updateCharacterInfo(state.selectedCharacter);
+            const moveResult = state.selectedCharacter.move(cell, state.characters);
+            
+            if (moveResult) {
+                state.selectedCharacter.isAtOriginalPosition = 
+                    cell.x === originalPosition?.x && cell.y === originalPosition?.y;
+                updateCharacterInfo(state.selectedCharacter);
+            } else {
+                // If move failed, show a message
+                addLogEntry('Cannot move to occupied position', ['move-error']);
+            }
         }
     }
     // Phase 3: Attack with the selected character
@@ -277,10 +321,13 @@ function handleCellClick(cell, state, selectedAbilityIndex) {
                 });
                 
                 // Log the area attack header
-                addLogEntry(
-                    `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} at ${toGridCoord(cell.x, cell.y)}`,
-                    ['attack']
-                );
+                window.logStandardAction({
+                    type: 'special',
+                    actor: state.selectedCharacter,
+                    position: cell,
+                    ability: ability,
+                    isAI: false
+                });
                 
                 // If no targets in area, still log it
                 if (targets.length === 0) {
@@ -348,36 +395,25 @@ function handleCellClick(cell, state, selectedAbilityIndex) {
                     const result = state.selectedCharacter.attack(target, selectedAbilityIndex);
                     displayCombatResult(result, target);
                     
-                    // Log the attack with detailed information
-                    const hitMiss = result.hit ? 'Hit!' : 'Miss';
-                    let message = `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} on ${target.name} - ${hitMiss}`;
-                    
-                    if (result.hit) {
-                        message += ` (${result.baseDamage}`;
-                        if (result.bonusDamage > 0) {
-                            message += ` + ${result.bonusDamage} bonus`;
-                        }
-                        message += ' damage)';
-                        
-                        if (ability.saveDifficulty > 0) {
-                            const saveSuccess = result.saveRoll >= ability.saveDifficulty;
-                            message += `\nSave: ${result.saveRoll} vs DC ${ability.saveDifficulty} (${saveSuccess ? 'Success - Half damage' : 'Failure'})`;
-                        }
-                        
-                        message += `\nHealth: ${target.health}/${target.class.healthPoints}`;
-                        
-                        if (target.health <= 0) {
-                            message += '\nDefeated!';
-                        }
-                    }
-                    
-                    addLogEntry(message, ['attack', result.hit ? 'hit' : 'miss']);
+                    // Log the attack using standardized format
+                    window.logStandardAction({
+                        type: selectedAbilityIndex === 0 ? 'attack' : 'special',
+                        actor: state.selectedCharacter,
+                        target: target,
+                        ability: ability,
+                        result: result,
+                        isAI: false
+                    });
                 } else {
                     // Log missed attack when targeting an empty cell
-                    addLogEntry(
-                        `Player ${state.currentPlayer} ${state.selectedCharacter.class.name} uses ${ability.displayName} but misses (no target at ${toGridCoord(cell.x, cell.y)})`,
-                        ['attack', 'miss']
-                    );
+                    window.logStandardAction({
+                        type: selectedAbilityIndex === 0 ? 'attack' : 'special',
+                        actor: state.selectedCharacter,
+                        position: cell,
+                        ability: ability,
+                        result: { hit: false },
+                        isAI: false
+                    });
                 }
                 
                 // Always mark ability as used, regardless of hit or miss or target presence

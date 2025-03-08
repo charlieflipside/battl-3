@@ -104,8 +104,21 @@ export class Character {
     }
     
     // Move to a new position
-    move(newPosition) {
+    move(newPosition, characters = []) {
         if (this.hasMoved) return false;
+        
+        // Check if the target position is already occupied by another character
+        const isOccupied = characters.some(c => 
+            c !== this && 
+            c.position.x === newPosition.x && 
+            c.position.y === newPosition.y &&
+            c.health > 0
+        );
+        
+        if (isOccupied) {
+            console.log('Position already occupied');
+            return false;
+        }
         
         this.position = { ...newPosition };
         this.hasMoved = true;
