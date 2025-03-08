@@ -21,7 +21,7 @@ body {
         "header header header"
         "character battlefield log";
     grid-template-columns: 250px 1fr 250px;
-    grid-template-rows: auto minmax(600px, 1fr);
+    grid-template-rows: 50px minmax(650px, 1fr);
     gap: 15px;
     height: 95vh;
     min-height: 700px; /* Ensure minimum height */
@@ -35,9 +35,15 @@ body {
     align-items: center;
     margin-bottom: 0;
     background-color: #fff;
-    padding: 15px;
+    padding: 8px 15px;
     border-radius: 5px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    height: 50px; /* Fixed smaller height */
+}
+
+.game-header h1 {
+    font-size: 20px;
+    margin: 0;
 }
 
 /* Character info panel */
@@ -304,4 +310,17 @@ body {
         grid-template-columns: 1fr 1fr 1fr;
         grid-template-rows: auto 1fr auto;
     }
+}
+
+/* Dead character indicator */
+.character.dead::before {
+    content: "❌";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 32px;
+    color: #ff0000;
+    z-index: 10;
+    text-shadow: 0 0 3px #000;
 }

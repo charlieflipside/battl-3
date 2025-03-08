@@ -200,6 +200,28 @@ export class Battlefield {
         // Health bar fill (player color with opacity based on health)
         this.ctx.fillStyle = this.adjustColorBrightness(baseColor, healthPercent < 0.3 ? -0.3 : 0);
         this.ctx.fillRect(x + padding, barY, barWidth * healthPercent, barHeight);
+        
+        // Draw red X for dead characters
+        if (character.health <= 0) {
+            this.ctx.fillStyle = '#ff0000';
+            this.ctx.font = 'bold 32px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            // Add shadow for better visibility
+            this.ctx.shadowColor = 'black';
+            this.ctx.shadowBlur = 4;
+            
+            // Draw the X
+            this.ctx.fillText(
+                '✖',
+                x + this.cellSize / 2,
+                y + this.cellSize / 2
+            );
+            
+            // Reset shadow
+            this.ctx.shadowBlur = 0;
+        }
     }
     
     // Helper method to adjust color brightness

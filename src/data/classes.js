@@ -15,14 +15,14 @@ export const CLASSES = {
     
     FIGHTER: {
         name: 'Fighter',
-        move: 40,
+        move: 60,
         attack: 5,
         bonusAgainst: 'Ranger',
         bonusAmount: 3,
         armorCheck: 18,
         healthPoints: 30,
         save: 3,
-        description: 'Fighters are melee specialists with high health and armor',
+        description: 'Fighters are melee specialists with high health, armor, and mobility',
         iconColor: '#b22222' // Firebrick red
     },
     
