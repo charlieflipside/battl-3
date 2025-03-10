@@ -35,7 +35,33 @@ const state = {
         MAGE: 1,
         FIGHTER: 1,
         RANGER: 1
-    }
+    },
+    // Game over flag
+    gameOver: false
+};
+
+// Name pools for each class - ensure 6 names per class
+// Different name sets for each player to ensure uniqueness
+const PLAYER_1_NAMES = {
+    MAGE: ['Arcana', 'Merlin', 'Sage', 'Spellweaver', 'Mystic', 'Eldritch'],
+    FIGHTER: ['Valor', 'Ironclad', 'Bastion', 'Sentinel', 'Vanguard', 'Shield'],
+    RANGER: ['Hawk', 'Shadow', 'Scout', 'Hunter', 'Tracker', 'Strider']
+};
+
+const PLAYER_2_NAMES = {
+    MAGE: ['Phoenix', 'Frost', 'Tempest', 'Rune', 'Eclipse', 'Void'],
+    FIGHTER: ['Titan', 'Warden', 'Juggernaut', 'Paladin', 'Berserker', 'Knight'],
+    RANGER: ['Falcon', 'Phantom', 'Stalker', 'Archer', 'Sniper', 'Ranger']
+};
+
+// Color codes for each player (Player 1 is red, Player 2 is blue)
+const PLAYER_COLORS = ['🔴', '🔵'];
+
+// Class-specific icons
+const CLASS_ICONS = {
+    MAGE: '✨',
+    FIGHTER: '⚔️',
+    RANGER: '🏹'
 };
 
 // Initialize the game
@@ -306,6 +332,9 @@ function startGame() {
     console.log("Starting game with map:", state.selectedMap, "and team:", state.player1Team);
     
     try {
+        // Reset game state
+        state.gameOver = false;
+        
         // Create battlefield with selected map
         const canvas = document.getElementById('battlefield');
         state.battlefield = new Battlefield(canvas, MAPS[state.selectedMap]);
@@ -340,71 +369,99 @@ function initializeCharacters() {
     // Clear existing characters
     state.characters = [];
     
-    // Create player 1 characters based on team selection
-    createTeamCharacters(0, state.player1Team);
+    // Create characters for player 1
+    const player1Characters = createTeamCharacters(0, state.player1Team);
     
-    // Create player 2 characters (AI)
-    createTeamCharacters(1, state.player2Team);
+    // Create characters for player 2
+    const player2Characters = createTeamCharacters(1, state.player2Team);
+    
+    // Add all characters to the state
+    state.characters = [...player1Characters, ...player2Characters];
+    
+    console.log(`Initialized ${state.characters.length} characters`);
 }
 
 // Create team characters with random positions
 function createTeamCharacters(playerId, teamComposition) {
+    console.log(`Creating team for player ${playerId}:`, teamComposition);
+    
+    // Get spawn area for this player
     const spawnArea = getSpawnArea(playerId);
+    
+    // Track used positions to avoid overlaps
     const usedPositions = new Set();
     
-    // Name pools for each class - ensure 6 names per class
-    // Different name sets for each player to ensure uniqueness
-    const namesByClassAndPlayer = {
-        0: { // Player 1 names
-            MAGE: ['Arcana', 'Merlin', 'Sage', 'Spellweaver', 'Mystic', 'Eldritch'],
-            FIGHTER: ['Valor', 'Ironclad', 'Bastion', 'Sentinel', 'Vanguard', 'Shield'],
-            RANGER: ['Hawk', 'Shadow', 'Scout', 'Hunter', 'Tracker', 'Strider']
-        },
-        1: { // Player 2 names
-            MAGE: ['Phoenix', 'Frost', 'Tempest', 'Rune', 'Eclipse', 'Void'],
-            FIGHTER: ['Titan', 'Warden', 'Juggernaut', 'Paladin', 'Berserker', 'Knight'],
-            RANGER: ['Falcon', 'Phantom', 'Stalker', 'Archer', 'Sniper', 'Ranger']
+    // Track used names to avoid duplicates
+    const usedNames = new Set();
+    
+    // Create characters for each class in the team composition
+    const characters = [];
+    
+    // Create a timestamp-based seed for better randomization
+    const seed = Date.now() + Math.random() * 10000 + playerId;
+    
+    // Process each class type
+    Object.entries(teamComposition).forEach(([classType, count]) => {
+        // Skip if count is 0
+        if (count <= 0) return;
+        
+        // Get class data
+        const classData = CLASSES[classType];
+        
+        // Get name lists for this class
+        const nameList = playerId === 0 ? 
+            PLAYER_1_NAMES[classType] : 
+            PLAYER_2_NAMES[classType];
+        
+        // Shuffle the name list using Fisher-Yates algorithm with our seed
+        const shuffledNames = [...nameList];
+        for (let i = shuffledNames.length - 1; i > 0; i--) {
+            const j = Math.floor((Math.random() * seed) % (i + 1));
+            [shuffledNames[i], shuffledNames[j]] = [shuffledNames[j], shuffledNames[i]];
         }
-    };
-    
-    // Color codes for each player (Player 1 is red, Player 2 is blue)
-    const playerColors = ['🔴', '🔵'];
-    
-    // Class-specific icons
-    const classIcons = {
-        MAGE: '✨',
-        FIGHTER: '⚔️',
-        RANGER: '🏹'
-    };
-    
-    // Track name index for each class to use them in order
-    const nameIndexByClass = {
-        MAGE: 0,
-        FIGHTER: 0,
-        RANGER: 0
-    };
-    
-    // Create characters for each class based on team composition
-    Object.entries(teamComposition).forEach(([classKey, count]) => {
+        
+        // Create the specified number of characters for this class
         for (let i = 0; i < count; i++) {
+            // Get a random valid position
             const position = getRandomValidPosition(spawnArea, usedPositions);
             
-            // Get the next name in order from the appropriate pool for this player
-            const namePool = namesByClassAndPlayer[playerId][classKey];
-            const nameIndex = nameIndexByClass[classKey];
-            const characterName = namePool[nameIndex % namePool.length];
+            if (!position) {
+                console.error(`Could not find valid position for ${classType} ${i+1}`);
+                continue;
+            }
             
-            // Increment the name index for this class
-            nameIndexByClass[classKey]++;
+            // Get a unique name for this character
+            let name;
+            let nameIndex = 0;
             
-            // Create a name with player color, class icon, and name
-            const name = `${playerColors[playerId]} ${classIcons[classKey]} ${characterName}`;
+            do {
+                name = shuffledNames[nameIndex % shuffledNames.length];
+                nameIndex++;
+                
+                // If we've tried all names, add a number suffix
+                if (nameIndex > shuffledNames.length) {
+                    name = `${name} ${Math.floor(Math.random() * 100)}`;
+                }
+            } while (usedNames.has(name));
             
-            state.characters.push(
-                new Character(name, CLASSES[classKey], playerId, position)
-            );
+            usedNames.add(name);
+            
+            // Create the character
+            const character = new Character({
+                id: `${classType.toLowerCase()}_${playerId}_${i}`,
+                name: name,
+                class: classData,
+                playerId: playerId,
+                position: position,
+                health: classData.healthPoints
+            });
+            
+            characters.push(character);
+            console.log(`Created ${classData.name} "${name}" at position (${position.x}, ${position.y})`);
         }
     });
+    
+    return characters;
 }
 
 // Get spawn area for a player
@@ -436,33 +493,47 @@ function getRandomValidPosition(spawnArea, usedPositions) {
     const map = MAPS[state.selectedMap];
     const { minRow, maxRow, minCol, maxCol } = spawnArea;
     
-    // Try to find a valid position (not water or mountain, not already used)
-    let attempts = 0;
-    let position;
+    // Create a timestamp-based seed for better randomization
+    const seed = Date.now() + Math.random() * 10000;
     
-    do {
-        const row = Math.floor(Math.random() * (maxRow - minRow + 1)) + minRow;
-        const col = Math.floor(Math.random() * (maxCol - minCol + 1)) + minCol;
-        
-        // Check if position is valid (not water or mountain)
-        const terrainType = map.grid[row][col];
-        const isValidTerrain = terrainType !== 1 && terrainType !== 2; // Not water or mountain
-        
-        position = { x: col, y: row };
-        const positionKey = `${position.x},${position.y}`;
-        
-        // If position is valid and not used, use it
-        if (isValidTerrain && !usedPositions.has(positionKey)) {
-            usedPositions.add(positionKey);
-            return position;
+    // Get all valid positions in the spawn area
+    const validPositions = [];
+    
+    for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
+            // Check if position is valid (not water or mountain)
+            const terrainType = map.grid[row][col];
+            const isValidTerrain = terrainType !== 1 && terrainType !== 2; // Not water or mountain
+            
+            const position = { x: col, y: row };
+            const positionKey = `${position.x},${position.y}`;
+            
+            // If position is valid and not used, add it to valid positions
+            if (isValidTerrain && !usedPositions.has(positionKey)) {
+                validPositions.push(position);
+            }
         }
-        
-        attempts++;
-    } while (attempts < 100); // Prevent infinite loop
+    }
     
-    // Fallback: if we can't find a valid position, use a default one
-    console.warn('Could not find valid random position, using fallback');
-    return { x: minCol + 1, y: minRow + 1 };
+    // If no valid positions, return null
+    if (validPositions.length === 0) {
+        console.error("No valid positions found in spawn area");
+        return null;
+    }
+    
+    // Shuffle the valid positions array using Fisher-Yates algorithm with our seed
+    for (let i = validPositions.length - 1; i > 0; i--) {
+        const j = Math.floor((Math.random() * seed) % (i + 1));
+        [validPositions[i], validPositions[j]] = [validPositions[j], validPositions[i]];
+    }
+    
+    // Take the first position from the shuffled array
+    const chosenPosition = validPositions[0];
+    const chosenPositionKey = `${chosenPosition.x},${chosenPosition.y}`;
+    usedPositions.add(chosenPositionKey);
+    
+    console.log(`Spawning at position: (${chosenPosition.x}, ${chosenPosition.y})`);
+    return chosenPosition;
 }
 
 // Setup terrain hover info
@@ -615,7 +686,14 @@ function addLogEntry(message, classes = []) {
     logEntries.appendChild(entry);
     
     // Scroll to the bottom to show the newest entry
-    logEntries.scrollTop = logEntries.scrollHeight;
+    // Use requestAnimationFrame to ensure the DOM has updated
+    requestAnimationFrame(() => {
+        const battleLog = document.querySelector('.battle-log');
+        if (battleLog) {
+            battleLog.scrollTop = battleLog.scrollHeight;
+        }
+        logEntries.scrollTop = logEntries.scrollHeight;
+    });
     
     console.log("Log entry added:", message);
     
@@ -647,106 +725,318 @@ async function runAITurn() {
     // Set flag to prevent multiple AI turns running simultaneously
     state.aiThinking = true;
     
-    // Safety check - limit the number of AI actions per turn
-    let actionCounter = 0;
-    const MAX_ACTIONS_PER_TURN = 10; // Reasonable limit for a turn
-    
-    // Add log entry
-    addLogEntry(`AI Player 2 (${getDifficultyName(state.aiDifficulty)}) is thinking...`, ['ai']);
-    
-    // Small delay to show the AI is "thinking"
-    await delay(500);
-    
-    // Get all living AI characters
-    const aiCharacters = state.characters.filter(c => 
-        c.playerId === 1 && c.health > 0
-    );
-    
-    // Get all living enemy characters
-    const enemies = state.characters.filter(c => 
-        c.playerId === 0 && c.health > 0
-    );
-    
-    if (enemies.length === 0) {
-        console.log('No enemies found, ending AI turn');
-        nextTurn();
-        state.aiThinking = false;
-        return;
-    }
-    
-    // Track if any actions were taken
-    let actionsTaken = false;
-    
-    // Process each AI character - no special treatment for any class
-    for (const character of aiCharacters) {
-        console.log(`Processing character: ${character.name} (${character.class.name})`);
+    try {
+        // Safety check - limit the number of AI actions per turn
+        let actionCounter = 0;
+        const MAX_ACTIONS_PER_TURN = 10; // Reasonable limit for a turn
         
-        // Skip characters that have completed their turn
-        if (character.hasMoved && character.hasAttacked) {
-            console.log(`Skipping ${character.name} - already acted`);
-            continue;
+        // Add log entry
+        addLogEntry(`AI Player 2 (${getDifficultyName(state.aiDifficulty)}) is thinking...`, ['ai']);
+        
+        // Small delay to show the AI is "thinking"
+        await delay(500);
+        
+        // Get all living AI characters
+        const aiCharacters = state.characters.filter(c => 
+            c.playerId === 1 && c.health > 0
+        );
+        
+        // Get all living enemy characters
+        const enemies = state.characters.filter(c => 
+            c.playerId === 0 && c.health > 0
+        );
+        
+        if (enemies.length === 0) {
+            console.log('No enemies found, ending AI turn');
+            nextTurn();
+            return;
         }
         
-        // Helper function to filter attack targets to ensure they're enemies
-        function filterEnemyTargets(attacks, character, allCharacters) {
-            return attacks.filter(attack => {
-                const targetCharacter = allCharacters.find(c => 
-                    c.position.x === attack.x && 
-                    c.position.y === attack.y
-                );
-                
-                return targetCharacter && targetCharacter.playerId !== character.playerId;
-            });
-        }
+        // Track if any actions were taken
+        let actionsTaken = false;
         
-        // STEP 1: Try to attack first if possible
-        if (!character.hasAttacked) {
-            // Check for special ability attacks first (ability index 1)
-            let specialAttacks = character.getValidAttacks(state.battlefield, state.characters, 1);
-            // Filter to ensure we only target enemies
-            specialAttacks = filterEnemyTargets(specialAttacks, character, state.characters);
-            console.log(`${character.name} valid special attacks:`, specialAttacks.length);
+        // Process each AI character
+        for (const character of aiCharacters) {
+            console.log(`Processing character: ${character.name} (${character.class.name})`);
             
-            // Check for regular attacks
-            let regularAttacks = character.getValidAttacks(state.battlefield, state.characters, 0);
-            // Filter to ensure we only target enemies
-            regularAttacks = filterEnemyTargets(regularAttacks, character, state.characters);
-            console.log(`${character.name} valid regular attacks:`, regularAttacks.length);
+            // Skip characters that have completed their turn
+            if (character.hasMoved && character.hasAttacked) {
+                console.log(`Skipping ${character.name} - already acted`);
+                continue;
+            }
             
-            // Prioritize special abilities if available and character hasn't moved
-            // (since special abilities often cost movement)
-            if (specialAttacks.length > 0 && !character.hasMoved) {
-                // Choose a target (prefer lower health)
-                specialAttacks.sort((a, b) => {
-                    const targetA = state.characters.find(c => c.position.x === a.x && c.position.y === a.y);
-                    const targetB = state.characters.find(c => c.position.x === b.x && c.position.y === b.y);
-                    return (targetA ? targetA.health : 100) - (targetB ? targetB.health : 100);
-                });
+            // Special handling for Fighter class
+            const isFighter = character.class && character.class.name === 'Fighter';
+            
+            // STEP 1 for Fighters: Always move first
+            if (isFighter && !character.hasMoved) {
+                const validMoves = character.getValidMoves(state.battlefield);
                 
-                const target = specialAttacks[0];
-                const targetCharacter = state.characters.find(c => 
-                    c.position.x === target.x && 
-                    c.position.y === target.y && 
-                    c.playerId !== character.playerId // Ensure we're only targeting enemies
-                );
-                
-                if (targetCharacter) {
-                    console.log(`${character.name} using special ability on ${targetCharacter.name}`);
+                if (validMoves.length > 0) {
+                    console.log(`Fighter ${character.name} has ${validMoves.length} possible moves`);
                     
-                    // Perform special attack (ability index 1)
-                    const result = character.attack(targetCharacter, 1);
+                    // Prioritize targets: Rangers > Mages > Others
+                    const rangerEnemies = enemies.filter(e => e.class && e.class.name === 'Ranger');
+                    const mageEnemies = enemies.filter(e => e.class && e.class.name === 'Mage');
+                    const otherEnemies = enemies.filter(e => e.health > 0);
                     
-                    if (result) {
-                        // Mark character as having attacked
-                        character.hasAttacked = true;
+                    // Choose target priority
+                    let targetEnemy = null;
+                    
+                    if (rangerEnemies.length > 0) {
+                        // Find closest ranger
+                        targetEnemy = rangerEnemies.reduce((closest, current) => {
+                            const distToCurrent = calculateDistance(character.position, current.position);
+                            const distToClosest = calculateDistance(character.position, closest.position);
+                            return distToCurrent < distToClosest ? current : closest;
+                        }, rangerEnemies[0]);
                         
-                        // Special abilities often cost movement too
-                        if (character.abilities[1] && character.abilities[1].costMove) {
+                        console.log(`Fighter targeting Ranger: ${targetEnemy.name}`);
+                    } 
+                    else if (mageEnemies.length > 0) {
+                        // Find closest mage
+                        targetEnemy = mageEnemies.reduce((closest, current) => {
+                            const distToCurrent = calculateDistance(character.position, current.position);
+                            const distToClosest = calculateDistance(character.position, closest.position);
+                            return distToCurrent < distToClosest ? current : closest;
+                        }, mageEnemies[0]);
+                        
+                        console.log(`Fighter targeting Mage: ${targetEnemy.name}`);
+                    }
+                    else if (otherEnemies.length > 0) {
+                        // Find closest enemy
+                        targetEnemy = otherEnemies.reduce((closest, current) => {
+                            const distToCurrent = calculateDistance(character.position, current.position);
+                            const distToClosest = calculateDistance(character.position, closest.position);
+                            return distToCurrent < distToClosest ? current : closest;
+                        }, otherEnemies[0]);
+                        
+                        console.log(`Fighter targeting other enemy: ${targetEnemy.name}`);
+                    }
+                    
+                    if (targetEnemy) {
+                        // Sort moves by which gets closest to target
+                        validMoves.sort((a, b) => {
+                            const distA = calculateDistance(a, targetEnemy.position);
+                            const distB = calculateDistance(b, targetEnemy.position);
+                            return distA - distB;
+                        });
+                        
+                        // Choose best move (closest to target)
+                        const bestMove = validMoves[0];
+                        console.log(`Fighter moving to ${bestMove.x}, ${bestMove.y} to get closer to target`);
+                        
+                        // Execute move
+                        const moveResult = character.move(bestMove, state.characters);
+                        
+                        if (moveResult) {
                             character.hasMoved = true;
+                            logStandardAction('move', character, bestMove, null, true);
+                            actionsTaken = true;
+                            
+                            // Update UI
+                            updateHUD(state);
+                            await delay(500);
+                        }
+                    }
+                }
+            }
+            
+            // Helper function to filter attack targets to ensure they're enemies
+            function filterEnemyTargets(attacks, character, allCharacters) {
+                return attacks.filter(attack => {
+                    const targetCharacter = allCharacters.find(c => 
+                        c.position.x === attack.x && 
+                        c.position.y === attack.y
+                    );
+                    
+                    return targetCharacter && targetCharacter.playerId !== character.playerId;
+                });
+            }
+            
+            // STEP 2: Try to attack if possible
+            if (!character.hasAttacked) {
+                // Check for special ability attacks first (ability index 1)
+                let specialAttacks = character.getValidAttacks(state.battlefield, state.characters, 1);
+                // Filter to ensure we only target enemies
+                specialAttacks = filterEnemyTargets(specialAttacks, character, state.characters);
+                console.log(`${character.name} valid special attacks:`, specialAttacks.length);
+                
+                // Check for regular attacks
+                let regularAttacks = character.getValidAttacks(state.battlefield, state.characters, 0);
+                // Filter to ensure we only target enemies
+                regularAttacks = filterEnemyTargets(regularAttacks, character, state.characters);
+                console.log(`${character.name} valid regular attacks:`, regularAttacks.length);
+                
+                // Prioritize special abilities if available and character hasn't moved
+                // (since special abilities often cost movement)
+                if (specialAttacks.length > 0 && !character.hasMoved) {
+                    // Choose a target (prefer lower health)
+                    specialAttacks.sort((a, b) => {
+                        const targetA = state.characters.find(c => c.position.x === a.x && c.position.y === a.y);
+                        const targetB = state.characters.find(c => c.position.x === b.x && c.position.y === b.y);
+                        return (targetA ? targetA.health : 100) - (targetB ? targetB.health : 100);
+                    });
+                    
+                    const target = specialAttacks[0];
+                    const targetCharacter = state.characters.find(c => 
+                        c.position.x === target.x && 
+                        c.position.y === target.y && 
+                        c.playerId !== character.playerId // Ensure we're only targeting enemies
+                    );
+                    
+                    if (targetCharacter) {
+                        console.log(`${character.name} using special ability on ${targetCharacter.name}`);
+                        
+                        // Perform special attack (ability index 1)
+                        const result = character.attack(targetCharacter, 1);
+                        
+                        if (result) {
+                            // Mark character as having attacked
+                            character.hasAttacked = true;
+                            
+                            // Special abilities often cost movement too
+                            if (character.abilities[1] && character.abilities[1].costMove) {
+                                character.hasMoved = true;
+                            }
+                            
+                            // Log the attack
+                            logStandardAction('special', character, target, targetCharacter, true, character.abilities[1], result);
+                            
+                            actionsTaken = true;
+                            actionCounter++; // Increment action counter
+                            
+                            // Check if we've reached the action limit
+                            if (actionCounter >= MAX_ACTIONS_PER_TURN) {
+                                console.log('AI reached maximum actions per turn, ending turn');
+                                break;
+                            }
+                            
+                            // Update UI
+                            updateHUD(state);
+                            await delay(500);
+                            
+                            // Skip to next character since this one has acted
+                            continue;
+                        }
+                    }
+                }
+                
+                // If no special attack was performed, try regular attack
+                if (regularAttacks.length > 0) {
+                    // Choose a target (prefer lower health)
+                    regularAttacks.sort((a, b) => {
+                        const targetA = state.characters.find(c => c.position.x === a.x && c.position.y === a.y);
+                        const targetB = state.characters.find(c => c.position.x === b.x && c.position.y === b.y);
+                        return (targetA ? targetA.health : 100) - (targetB ? targetB.health : 100);
+                    });
+                    
+                    const target = regularAttacks[0];
+                    const targetCharacter = state.characters.find(c => 
+                        c.position.x === target.x && 
+                        c.position.y === target.y && 
+                        c.playerId !== character.playerId // Ensure we're only targeting enemies
+                    );
+                    
+                    if (targetCharacter) {
+                        console.log(`${character.name} attacking ${targetCharacter.name}`);
+                        
+                        // Perform regular attack
+                        const result = character.attack(targetCharacter, 0);
+                        
+                        if (result) {
+                            // Mark character as having attacked
+                            character.hasAttacked = true;
+                            
+                            // Log the attack
+                            logStandardAction('attack', character, target, targetCharacter, true, character.abilities[0], result);
+                            
+                            actionsTaken = true;
+                            actionCounter++; // Increment action counter
+                            
+                            // Check if we've reached the action limit
+                            if (actionCounter >= MAX_ACTIONS_PER_TURN) {
+                                console.log('AI reached maximum actions per turn, ending turn');
+                                break;
+                            }
+                            
+                            // Update UI
+                            updateHUD(state);
+                            await delay(500);
+                        }
+                    }
+                }
+            }
+            
+            // STEP 3: Move non-fighters if they haven't moved yet
+            if (!isFighter && !character.hasMoved) {
+                const validMoves = character.getValidMoves(state.battlefield);
+                console.log(`${character.name} valid moves:`, validMoves.length);
+                
+                if (validMoves.length > 0) {
+                    // Special handling for Fighter class - always prioritize movement
+                    const isFighter = character.class && character.class.name === 'Fighter';
+                    
+                    // Find closest enemy
+                    let closestEnemy = enemies[0];
+                    let closestDistance = calculateDistance(character.position, closestEnemy.position);
+                    
+                    for (let i = 1; i < enemies.length; i++) {
+                        const distance = calculateDistance(character.position, enemies[i].position);
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestEnemy = enemies[i];
+                        }
+                    }
+                    
+                    // For Fighters, prioritize Rangers, then Mages, then others
+                    if (isFighter) {
+                        const rangerEnemies = enemies.filter(e => e.class && e.class.name === 'Ranger');
+                        const mageEnemies = enemies.filter(e => e.class && e.class.name === 'Mage');
+                        
+                        if (rangerEnemies.length > 0) {
+                            // Prioritize Rangers for Fighters
+                            closestEnemy = rangerEnemies.reduce((closest, current) => {
+                                const closestDist = calculateDistance(character.position, closest.position);
+                                const currentDist = calculateDistance(character.position, current.position);
+                                return currentDist < closestDist ? current : closest;
+                            }, rangerEnemies[0]);
+                        } else if (mageEnemies.length > 0) {
+                            // Then prioritize Mages
+                            closestEnemy = mageEnemies.reduce((closest, current) => {
+                                const closestDist = calculateDistance(character.position, closest.position);
+                                const currentDist = calculateDistance(character.position, current.position);
+                                return currentDist < closestDist ? current : closest;
+                            }, mageEnemies[0]);
                         }
                         
-                        // Log the attack
-                        logStandardAction('special', character, target, targetCharacter, true, character.abilities[1], result);
+                        console.log(`Fighter ${character.name} targeting ${closestEnemy.class ? closestEnemy.class.name : 'enemy'}`);
+                    }
+                    
+                    // Sort moves by distance to closest enemy (prefer moves that get closer)
+                    validMoves.sort((a, b) => {
+                        const distA = calculateDistance(a, closestEnemy.position);
+                        const distB = calculateDistance(b, closestEnemy.position);
+                        return distA - distB;
+                    });
+                    
+                    // Choose the best move
+                    const bestMove = validMoves[0];
+                    
+                    console.log(`${character.name} moving to (${bestMove.x}, ${bestMove.y})`);
+                    
+                    // Store original position for logging
+                    const originalPosition = { ...character.position };
+                    
+                    // Perform move
+                    const moveResult = character.move(bestMove, state.characters);
+                    
+                    if (moveResult) {
+                        // Mark character as having moved
+                        character.hasMoved = true;
+                        
+                        // Log the move
+                        logStandardAction('move', character, bestMove, null, true, null, null);
                         
                         actionsTaken = true;
                         actionCounter++; // Increment action counter
@@ -761,246 +1051,134 @@ async function runAITurn() {
                         updateHUD(state);
                         await delay(500);
                         
-                        // Skip to next character since this one has acted
-                        continue;
-                    }
-                }
-            }
-            
-            // If no special attack was performed, try regular attack
-            if (regularAttacks.length > 0) {
-                // Choose a target (prefer lower health)
-                regularAttacks.sort((a, b) => {
-                    const targetA = state.characters.find(c => c.position.x === a.x && c.position.y === a.y);
-                    const targetB = state.characters.find(c => c.position.x === b.x && c.position.y === b.y);
-                    return (targetA ? targetA.health : 100) - (targetB ? targetB.health : 100);
-                });
-                
-                const target = regularAttacks[0];
-                const targetCharacter = state.characters.find(c => 
-                    c.position.x === target.x && 
-                    c.position.y === target.y && 
-                    c.playerId !== character.playerId // Ensure we're only targeting enemies
-                );
-                
-                if (targetCharacter) {
-                    console.log(`${character.name} attacking ${targetCharacter.name}`);
-                    
-                    // Perform regular attack
-                    const result = character.attack(targetCharacter, 0);
-                    
-                    if (result) {
-                        // Mark character as having attacked
-                        character.hasAttacked = true;
-                        
-                        // Log the attack
-                        logStandardAction('attack', character, target, targetCharacter, true, character.abilities[0], result);
-                        
-                        actionsTaken = true;
-                        actionCounter++; // Increment action counter
-                        
-                        // Check if we've reached the action limit
-                        if (actionCounter >= MAX_ACTIONS_PER_TURN) {
-                            console.log('AI reached maximum actions per turn, ending turn');
-                            break;
+                        // After moving, check if we can now attack
+                        if (!character.hasAttacked) {
+                            // Check for special ability attacks first
+                            let newSpecialAttacks = character.getValidAttacks(state.battlefield, state.characters, 1);
+                            // Filter to ensure we only target enemies
+                            newSpecialAttacks = filterEnemyTargets(newSpecialAttacks, character, state.characters);
+                            
+                            // Check for regular attacks
+                            let newRegularAttacks = character.getValidAttacks(state.battlefield, state.characters, 0);
+                            // Filter to ensure we only target enemies
+                            newRegularAttacks = filterEnemyTargets(newRegularAttacks, character, state.characters);
+                            
+                            // Prioritize special abilities if available
+                            if (newSpecialAttacks.length > 0) {
+                                // Choose a target (prefer lower health)
+                                newSpecialAttacks.sort((a, b) => {
+                                    const targetA = state.characters.find(c => c.position.x === a.x && c.position.y === a.y);
+                                    const targetB = state.characters.find(c => c.position.x === b.x && c.position.y === b.y);
+                                    return (targetA ? targetA.health : 100) - (targetB ? targetB.health : 100);
+                                });
+                                
+                                const target = newSpecialAttacks[0];
+                                const targetCharacter = state.characters.find(c => 
+                                    c.position.x === target.x && 
+                                    c.position.y === target.y && 
+                                    c.playerId !== character.playerId // Ensure we're only targeting enemies
+                                );
+                                
+                                if (targetCharacter) {
+                                    console.log(`${character.name} using special ability on ${targetCharacter.name} after moving`);
+                                    
+                                    // Perform special attack
+                                    const result = character.attack(targetCharacter, 1);
+                                    
+                                    if (result) {
+                                        // Mark character as having attacked
+                                        character.hasAttacked = true;
+                                        
+                                        // Log the attack
+                                        logStandardAction('special', character, target, targetCharacter, true, character.abilities[1], result);
+                                        
+                                        actionsTaken = true;
+                                        actionCounter++; // Increment action counter
+                                        
+                                        // Check if we've reached the action limit
+                                        if (actionCounter >= MAX_ACTIONS_PER_TURN) {
+                                            console.log('AI reached maximum actions per turn, ending turn');
+                                            break;
+                                        }
+                                        
+                                        // Update UI
+                                        updateHUD(state);
+                                        await delay(500);
+                                        
+                                        // Skip to next iteration since we've attacked
+                                        continue;
+                                    }
+                                }
+                            }
+                            
+                            // If no special attack was performed, try regular attack
+                            if (newRegularAttacks.length > 0) {
+                                // Choose a target (prefer lower health)
+                                newRegularAttacks.sort((a, b) => {
+                                    const targetA = state.characters.find(c => c.position.x === a.x && c.position.y === a.y);
+                                    const targetB = state.characters.find(c => c.position.x === b.x && c.position.y === b.y);
+                                    return (targetA ? targetA.health : 100) - (targetB ? targetB.health : 100);
+                                });
+                                
+                                const target = newRegularAttacks[0];
+                                const targetCharacter = state.characters.find(c => 
+                                    c.position.x === target.x && 
+                                    c.position.y === target.y && 
+                                    c.playerId !== character.playerId // Ensure we're only targeting enemies
+                                );
+                                
+                                if (targetCharacter) {
+                                    console.log(`${character.name} attacking ${targetCharacter.name} after moving`);
+                                    
+                                    // Perform attack
+                                    const result = character.attack(targetCharacter, 0);
+                                    
+                                    if (result) {
+                                        // Mark character as having attacked
+                                        character.hasAttacked = true;
+                                        
+                                        // Log the attack
+                                        logStandardAction('attack', character, target, targetCharacter, true, character.abilities[0], result);
+                                        
+                                        actionsTaken = true;
+                                        actionCounter++; // Increment action counter
+                                        
+                                        // Check if we've reached the action limit
+                                        if (actionCounter >= MAX_ACTIONS_PER_TURN) {
+                                            console.log('AI reached maximum actions per turn, ending turn');
+                                            break;
+                                        }
+                                        
+                                        // Update UI
+                                        updateHUD(state);
+                                        await delay(500);
+                                    }
+                                }
+                            }
                         }
-                        
-                        // Update UI
-                        updateHUD(state);
-                        await delay(500);
+                    } else {
+                        console.log(`Move failed for ${character.name} - position occupied`);
                     }
                 }
             }
         }
         
-        // STEP 2: Move if haven't moved yet
-        if (!character.hasMoved) {
-            const validMoves = character.getValidMoves(state.battlefield);
-            console.log(`${character.name} valid moves:`, validMoves.length);
+        // End turn if all characters have acted or no actions were taken
+        if (!actionsTaken || allCharactersActed(aiCharacters) || actionCounter >= MAX_ACTIONS_PER_TURN) {
+            console.log('AI ending turn');
             
-            if (validMoves.length > 0) {
-                // Find closest enemy
-                let closestEnemy = enemies[0];
-                let closestDistance = calculateDistance(character.position, closestEnemy.position);
-                
-                for (let i = 1; i < enemies.length; i++) {
-                    const distance = calculateDistance(character.position, enemies[i].position);
-                    if (distance < closestDistance) {
-                        closestDistance = distance;
-                        closestEnemy = enemies[i];
-                    }
-                }
-                
-                // Sort moves by distance to closest enemy (prefer moves that get closer)
-                validMoves.sort((a, b) => {
-                    const distA = calculateDistance(a, closestEnemy.position);
-                    const distB = calculateDistance(b, closestEnemy.position);
-                    return distA - distB;
-                });
-                
-                // Choose the best move
-                const bestMove = validMoves[0];
-                
-                console.log(`${character.name} moving to (${bestMove.x}, ${bestMove.y})`);
-                
-                // Store original position for logging
-                const originalPosition = { ...character.position };
-                
-                // Perform move
-                const moveResult = character.move(bestMove, state.characters);
-                
-                if (moveResult) {
-                    // Mark character as having moved
-                    character.hasMoved = true;
-                    
-                    // Log the move
-                    logStandardAction('move', character, bestMove, null, true, null, null);
-                    
-                    actionsTaken = true;
-                    actionCounter++; // Increment action counter
-                    
-                    // Check if we've reached the action limit
-                    if (actionCounter >= MAX_ACTIONS_PER_TURN) {
-                        console.log('AI reached maximum actions per turn, ending turn');
-                        break;
-                    }
-                    
-                    // Update UI
-                    updateHUD(state);
-                    await delay(500);
-                    
-                    // After moving, check if we can now attack
-                    if (!character.hasAttacked) {
-                        // Check for special ability attacks first
-                        let newSpecialAttacks = character.getValidAttacks(state.battlefield, state.characters, 1);
-                        // Filter to ensure we only target enemies
-                        newSpecialAttacks = filterEnemyTargets(newSpecialAttacks, character, state.characters);
-                        
-                        // Check for regular attacks
-                        let newRegularAttacks = character.getValidAttacks(state.battlefield, state.characters, 0);
-                        // Filter to ensure we only target enemies
-                        newRegularAttacks = filterEnemyTargets(newRegularAttacks, character, state.characters);
-                        
-                        // Prioritize special abilities if available
-                        if (newSpecialAttacks.length > 0) {
-                            // Choose a target (prefer lower health)
-                            newSpecialAttacks.sort((a, b) => {
-                                const targetA = state.characters.find(c => c.position.x === a.x && c.position.y === a.y);
-                                const targetB = state.characters.find(c => c.position.x === b.x && c.position.y === b.y);
-                                return (targetA ? targetA.health : 100) - (targetB ? targetB.health : 100);
-                            });
-                            
-                            const target = newSpecialAttacks[0];
-                            const targetCharacter = state.characters.find(c => 
-                                c.position.x === target.x && 
-                                c.position.y === target.y && 
-                                c.playerId !== character.playerId // Ensure we're only targeting enemies
-                            );
-                            
-                            if (targetCharacter) {
-                                console.log(`${character.name} using special ability on ${targetCharacter.name} after moving`);
-                                
-                                // Perform special attack
-                                const result = character.attack(targetCharacter, 1);
-                                
-                                if (result) {
-                                    // Mark character as having attacked
-                                    character.hasAttacked = true;
-                                    
-                                    // Log the attack
-                                    logStandardAction('special', character, target, targetCharacter, true, character.abilities[1], result);
-                                    
-                                    actionsTaken = true;
-                                    actionCounter++; // Increment action counter
-                                    
-                                    // Check if we've reached the action limit
-                                    if (actionCounter >= MAX_ACTIONS_PER_TURN) {
-                                        console.log('AI reached maximum actions per turn, ending turn');
-                                        break;
-                                    }
-                                    
-                                    // Update UI
-                                    updateHUD(state);
-                                    await delay(500);
-                                    
-                                    // Skip to next iteration since we've attacked
-                                    continue;
-                                }
-                            }
-                        }
-                        
-                        // If no special attack was performed, try regular attack
-                        if (newRegularAttacks.length > 0) {
-                            // Choose a target (prefer lower health)
-                            newRegularAttacks.sort((a, b) => {
-                                const targetA = state.characters.find(c => c.position.x === a.x && c.position.y === a.y);
-                                const targetB = state.characters.find(c => c.position.x === b.x && c.position.y === b.y);
-                                return (targetA ? targetA.health : 100) - (targetB ? targetB.health : 100);
-                            });
-                            
-                            const target = newRegularAttacks[0];
-                            const targetCharacter = state.characters.find(c => 
-                                c.position.x === target.x && 
-                                c.position.y === target.y && 
-                                c.playerId !== character.playerId // Ensure we're only targeting enemies
-                            );
-                            
-                            if (targetCharacter) {
-                                console.log(`${character.name} attacking ${targetCharacter.name} after moving`);
-                                
-                                // Perform attack
-                                const result = character.attack(targetCharacter, 0);
-                                
-                                if (result) {
-                                    // Mark character as having attacked
-                                    character.hasAttacked = true;
-                                    
-                                    // Log the attack
-                                    logStandardAction('attack', character, target, targetCharacter, true, character.abilities[0], result);
-                                    
-                                    actionsTaken = true;
-                                    actionCounter++; // Increment action counter
-                                    
-                                    // Check if we've reached the action limit
-                                    if (actionCounter >= MAX_ACTIONS_PER_TURN) {
-                                        console.log('AI reached maximum actions per turn, ending turn');
-                                        break;
-                                    }
-                                    
-                                    // Update UI
-                                    updateHUD(state);
-                                    await delay(500);
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    console.log(`Move failed for ${character.name} - position occupied`);
-                }
-            }
+            // Get any AI character for logging
+            const aiCharacter = aiCharacters.length > 0 ? aiCharacters[0] : { playerId: 1, name: 'AI' };
+            
+            // Log the end turn action
+            logStandardAction('endTurn', aiCharacter, null, null, true);
+            
+            // End turn
+            nextTurn();
         }
-    }
-    
-    // End turn if all characters have acted or no actions were taken
-    if (!actionsTaken || allCharactersActed(aiCharacters) || actionCounter >= MAX_ACTIONS_PER_TURN) {
-        console.log('AI ending turn');
-        
-        // Get any AI character for logging
-        const aiCharacter = aiCharacters.length > 0 ? aiCharacters[0] : { playerId: 1, name: 'AI' };
-        
-        // Log the end turn action
-        logStandardAction('endTurn', aiCharacter, null, null, true);
-        
-        // End turn
-        nextTurn();
-    }
-    
-    // Reset AI thinking flag
-    state.aiThinking = false;
-    
-    // Re-enable controls
-    if (window.enableControlsAfterAITurn) {
-        window.enableControlsAfterAITurn();
+    } finally {
+        // Always reset AI thinking flag, even if there's an error
+        state.aiThinking = false;
     }
 }
 
@@ -1170,23 +1348,53 @@ function showAIThinkingIndicator() {
 
 // Check if the game is over
 function checkGameOver() {
+    // If game is already over, don't check again or add more logs
+    if (state.gameOver) {
+        return true;
+    }
+    
     // Check if all characters of a player are defeated
     const player1Characters = state.characters.filter(c => c.playerId === 0 && c.health > 0);
     const player2Characters = state.characters.filter(c => c.playerId === 1 && c.health > 0);
     
+    let gameIsOver = false;
+    
     if (player1Characters.length === 0) {
-        // Player 2 wins
+        // Player 2 wins - only log once
         addLogEntry('🏆 Game Over: Player 2 Wins! 🏆', ['turn-change']);
-        return true;
+        gameIsOver = true;
+        
+        // Disable game loop updates
+        state.gameOver = true;
+        
+        // Stop AI thinking if it was in progress
+        state.aiThinking = false;
+        
+        // Disable all controls
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.disabled = true;
+        });
+        
+        console.log("GAME OVER: Player 2 wins");
     }
     
     if (player2Characters.length === 0) {
-        // Player 1 wins
+        // Player 1 wins - only log once
         addLogEntry('🏆 Game Over: Player 1 Wins! 🏆', ['turn-change']);
-        return true;
+        gameIsOver = true;
+        
+        // Disable game loop updates
+        state.gameOver = true;
+        
+        // Disable all controls
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.disabled = true;
+        });
+        
+        console.log("GAME OVER: Player 1 wins");
     }
     
-    return false;
+    return gameIsOver;
 }
 
 // Change turns
@@ -1213,9 +1421,14 @@ export function nextTurn() {
     // Update the UI
     updateHUD();
     
+    // Always reset AI thinking state when changing turns
+    state.aiThinking = false;
+    
     // If it's player 2's turn and AI is enabled, run the AI turn
     if (state.currentPlayer === 1 && state.useAIForPlayer2) {
         document.body.classList.add('ai-turn');
+        // Simple delay before running AI turn
+        setTimeout(() => runAITurn(), 500);
     } else {
         document.body.classList.remove('ai-turn');
     }

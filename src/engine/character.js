@@ -2,14 +2,40 @@ import { rollD20 } from './dice.js';
 import { ABILITIES } from '../data/abilities.js';
 
 export class Character {
-    constructor(name, characterClass, playerId, position) {
-        this.name = name;
-        this.class = characterClass;
-        this.playerId = playerId;
-        this.position = position;
+    constructor(params) {
+        // Handle both old and new constructor formats
+        if (typeof params === 'string') {
+            // Old format: (name, characterClass, playerId, position)
+            const [name, characterClass, playerId, position] = arguments;
+            this.name = name;
+            this.class = characterClass;
+            this.playerId = playerId;
+            this.position = position;
+            this.health = characterClass.healthPoints;
+        } else {
+            // New format: object with properties
+            this.id = params.id || `char_${Math.random().toString(36).substr(2, 9)}`;
+            this.name = params.name;
+            this.class = params.class;
+            this.playerId = params.playerId;
+            this.position = params.position;
+            this.health = params.health || params.class.healthPoints;
+        }
         
-        // Initialize health to max health from class
-        this.health = characterClass.healthPoints;
+        // Format the name with player color and class icon
+        if (!this.name.includes('🔴') && !this.name.includes('🔵')) {
+            const playerColors = ['🔴', '🔵'];
+            const classIcons = {
+                'Mage': '✨',
+                'Fighter': '⚔️',
+                'Ranger': '🏹'
+            };
+            
+            const playerColor = playerColors[this.playerId] || '';
+            const classIcon = classIcons[this.class.name] || '';
+            
+            this.name = `${playerColor} ${classIcon} ${this.name}`;
+        }
         
         // Track actions for the current turn
         this.hasMoved = false;
@@ -17,7 +43,7 @@ export class Character {
         
         // Load abilities based on character class
         this.abilities = Object.values(ABILITIES)
-            .filter(ability => ability.classRestriction === characterClass.name);
+            .filter(ability => ability.classRestriction === this.class.name);
     }
     
     // Get all valid moves based on movement range and terrain

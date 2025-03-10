@@ -40,7 +40,7 @@ export const ABILITIES = {
         classRestriction: 'Fighter',
         costMove: false,
         costStandard: true,
-        range: 10,  // 10 foot squares
+        range: 15,  // Increased from 10 to 15 to allow diagonal attacks
         radius: 0,
         damage: 5,
         bonusAgainst: 'Ranger',

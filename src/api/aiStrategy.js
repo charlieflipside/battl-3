@@ -135,6 +135,11 @@ function evaluateMove(state, characterId, targetPosition, difficulty) {
     // Base score - moving is okay
     let score = 30;
     
+    // Increase base movement score for Fighters to make them more likely to move
+    if (character.class === 'Fighter') {
+        score = 45; // Almost as valuable as attacking
+    }
+    
     // Find closest enemy
     const enemies = state.characters.filter(c => 
         c.playerId !== character.playerId && c.health > 0
