@@ -123,7 +123,73 @@ function setupMapSelection() {
             3: '#2d9d5c'  // Forest - dark green
         };
         
-        // Draw the map grid with colors first (as fallback)
+        // Define terrain image paths
+        const terrainImages = {
+            0: './src/assets/images/terrain/grass.png',
+            1: './src/assets/images/terrain/water.png',
+            2: './src/assets/images/terrain/mountain.png',
+            3: './src/assets/images/terrain/forest.png'
+        };
+        
+        // Preload terrain images
+        const images = {};
+        let loadedImages = 0;
+        const totalImages = Object.keys(terrainImages).length;
+        
+        // Function to draw the map once all images are loaded
+        function drawMap() {
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const terrainType = selectedMap.grid[y][x];
+                    
+                    if (images[terrainType]) {
+                        // Draw terrain image
+                        ctx.drawImage(
+                            images[terrainType],
+                            x * cellSize,
+                            y * cellSize,
+                            cellSize,
+                            cellSize
+                        );
+                    } else {
+                        // Fallback to color if image not available
+                        ctx.fillStyle = terrainColors[terrainType] || '#cccccc';
+                        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                    
+                    // Draw cell border
+                    ctx.strokeStyle = '#333333';
+                    ctx.lineWidth = 0.5;
+                    ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                }
+            }
+        }
+        
+        // Load all terrain images
+        Object.entries(terrainImages).forEach(([type, src]) => {
+            const img = new Image();
+            img.onload = () => {
+                images[type] = img;
+                loadedImages++;
+                
+                // Draw the map once all images are loaded
+                if (loadedImages === totalImages) {
+                    drawMap();
+                }
+            };
+            img.onerror = () => {
+                console.error(`Failed to load terrain image: ${src}`);
+                loadedImages++;
+                
+                // Draw the map once all images are loaded (even if some failed)
+                if (loadedImages === totalImages) {
+                    drawMap();
+                }
+            };
+            img.src = src;
+        });
+        
+        // Draw with fallback colors immediately (will be overwritten by images when loaded)
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
                 const terrainType = selectedMap.grid[y][x];
@@ -287,10 +353,18 @@ function createTeamCharacters(playerId, teamComposition) {
     const usedPositions = new Set();
     
     // Name pools for each class - ensure 6 names per class
-    const namesByClass = {
-        MAGE: ['Arcana', 'Merlin', 'Sage', 'Spellweaver', 'Mystic', 'Eldritch'],
-        FIGHTER: ['Valor', 'Ironclad', 'Bastion', 'Sentinel', 'Vanguard', 'Shield'],
-        RANGER: ['Hawk', 'Shadow', 'Scout', 'Hunter', 'Tracker', 'Strider']
+    // Different name sets for each player to ensure uniqueness
+    const namesByClassAndPlayer = {
+        0: { // Player 1 names
+            MAGE: ['Arcana', 'Merlin', 'Sage', 'Spellweaver', 'Mystic', 'Eldritch'],
+            FIGHTER: ['Valor', 'Ironclad', 'Bastion', 'Sentinel', 'Vanguard', 'Shield'],
+            RANGER: ['Hawk', 'Shadow', 'Scout', 'Hunter', 'Tracker', 'Strider']
+        },
+        1: { // Player 2 names
+            MAGE: ['Phoenix', 'Frost', 'Tempest', 'Rune', 'Eclipse', 'Void'],
+            FIGHTER: ['Titan', 'Warden', 'Juggernaut', 'Paladin', 'Berserker', 'Knight'],
+            RANGER: ['Falcon', 'Phantom', 'Stalker', 'Archer', 'Sniper', 'Ranger']
+        }
     };
     
     // Color codes for each player (Player 1 is red, Player 2 is blue)
@@ -315,8 +389,8 @@ function createTeamCharacters(playerId, teamComposition) {
         for (let i = 0; i < count; i++) {
             const position = getRandomValidPosition(spawnArea, usedPositions);
             
-            // Get the next name in order from the appropriate pool
-            const namePool = namesByClass[classKey];
+            // Get the next name in order from the appropriate pool for this player
+            const namePool = namesByClassAndPlayer[playerId][classKey];
             const nameIndex = nameIndexByClass[classKey];
             const characterName = namePool[nameIndex % namePool.length];
             
@@ -411,24 +485,42 @@ function setupTerrainHover() {
         // Convert to grid coordinates
         const gridPos = state.battlefield.screenToGrid(x, y);
         
-        // Set timeout for hover (500ms)
+        // Set timeout for hover (300ms)
         hoverTimeout = setTimeout(() => {
             // Get terrain info
             const terrainType = state.battlefield.getTerrainAt(gridPos.x, gridPos.y);
             const terrainName = getTerrainName(terrainType);
             const movementCost = state.battlefield.map.movementCosts[terrainType] || 'N/A';
             
+            // Check if there's a character at this position
+            const character = state.characters.find(c => 
+                c.position.x === gridPos.x && 
+                c.position.y === gridPos.y &&
+                c.health > 0
+            );
+            
             // Update tooltip content
-            terrainInfo.innerHTML = `
+            let tooltipContent = `
                 <strong>${terrainName}</strong><br>
                 Movement Cost: ${movementCost}x
             `;
             
+            // Add character info if a character is present
+            if (character) {
+                const playerColor = character.playerId === 0 ? '#e74c3c' : '#3498db';
+                tooltipContent += `
+                    <hr style="margin: 5px 0; border-color: #ddd;">
+                    <div style="color: ${playerColor}; font-weight: bold;">${character.name}</div>
+                    <div>Health: ${character.health}/${character.class.healthPoints}</div>
+                `;
+            }
+            
             // Position and show tooltip
+            terrainInfo.innerHTML = tooltipContent;
             terrainInfo.style.left = `${e.clientX + 10}px`;
             terrainInfo.style.top = `${e.clientY + 10}px`;
             terrainInfo.style.display = 'block';
-        }, 500);
+        }, 300);
     });
     
     // Hide tooltip when mouse leaves canvas
