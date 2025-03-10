@@ -11,7 +11,7 @@ export const ABILITIES = {
         radius: 0,
         damage: 3,
         bonusAgainst: 'Fighter',
-        bonusAmount: 1,
+        bonusAmount: 2,
         saveDifficulty: 0,
         description: 'A simple magical projectile that strikes with unerring accuracy',
         icon: '✨'
@@ -44,7 +44,7 @@ export const ABILITIES = {
         radius: 0,
         damage: 5,
         bonusAgainst: 'Ranger',
-        bonusAmount: 0,
+        bonusAmount: 2,
         saveDifficulty: 0,
         description: 'A quick strike with a melee weapon (10 foot reach)',
         icon: '⚔️'
@@ -60,7 +60,7 @@ export const ABILITIES = {
         radius: 0,
         damage: 10,
         bonusAgainst: 'Ranger',
-        bonusAmount: 0,
+        bonusAmount: 2,
         saveDifficulty: 0,
         description: 'A powerful blow with a shield that deals heavy damage (10 foot reach)',
         icon: '🛡️'
