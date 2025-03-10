@@ -1,7 +1,7 @@
 import { Battlefield } from './engine/battlefield.js';
 import { Character } from './engine/character.js';
 import { CLASSES } from './data/classes.js';
-import { DEFAULT_MAP } from './data/maps.js';
+import { MAPS } from './data/maps.js';
 import { setupControls } from './ui/controls.js';
 import { updateHUD } from './ui/hud.js';
 import { GameState } from './api/gameState.js';
@@ -23,47 +23,440 @@ const state = {
     // AI settings
     useAIForPlayer2: true,
     aiDifficulty: 2,
-    aiThinking: false
+    aiThinking: false,
+    // Game setup
+    selectedMap: 'DEFAULT',
+    player1Team: {
+        MAGE: 1,
+        FIGHTER: 1,
+        RANGER: 1
+    },
+    player2Team: {
+        MAGE: 1,
+        FIGHTER: 1,
+        RANGER: 1
+    }
 };
 
 // Initialize the game
 function init() {
-    // Create battlefield
-    const canvas = document.getElementById('battlefield');
-    state.battlefield = new Battlefield(canvas, DEFAULT_MAP);
+    // Setup game setup modal
+    setupGameSetup();
     
-    // Create characters for both players
-    initializeCharacters();
-    
-    // Setup controls
-    setupControls(state);
-    
-    // Setup AI controls
-    setupAIControls();
-    
-    // Start the game loop
-    gameLoop();
-    
-    // Initial render
-    updateHUD(state);
-    render();
+    // Log initialization
+    console.log("Game initialized");
 }
 
-// Initialize characters for both players
-function initializeCharacters() {
-    // Player 1 characters
-    state.characters.push(
-        new Character('Mage 1', CLASSES.MAGE, 0, { x: 2, y: 2 }),
-        new Character('Fighter 1', CLASSES.FIGHTER, 0, { x: 1, y: 3 }),
-        new Character('Ranger 1', CLASSES.RANGER, 0, { x: 3, y: 3 })
-    );
+// Setup game setup modal
+function setupGameSetup() {
+    const modal = document.getElementById('game-setup-modal');
+    const startGameBtn = document.getElementById('start-game-btn');
     
-    // Player 2 characters
-    state.characters.push(
-        new Character('Mage 2', CLASSES.MAGE, 1, { x: 7, y: 7 }),
-        new Character('Fighter 2', CLASSES.FIGHTER, 1, { x: 8, y: 6 }),
-        new Character('Ranger 2', CLASSES.RANGER, 1, { x: 6, y: 6 })
-    );
+    // Setup map selection
+    setupMapSelection();
+    
+    // Setup team selection
+    setupTeamSelection();
+    
+    // Start game button
+    startGameBtn.addEventListener('click', () => {
+        console.log("Start game button clicked");
+        modal.style.display = 'none';
+        startGame();
+    });
+    
+    // Log setup completion
+    console.log("Game setup modal initialized");
+}
+
+// Setup map selection
+function setupMapSelection() {
+    const mapRadios = document.querySelectorAll('input[name="map-select"]');
+    const mapPreviewCanvas = document.getElementById('map-preview-canvas');
+    const mapDescription = document.getElementById('map-description');
+    
+    console.log("Map selection setup started");
+    
+    // Update preview when map selection changes
+    mapRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            console.log("Map selected:", e.target.value);
+            state.selectedMap = e.target.value;
+            updateMapPreview();
+        });
+    });
+    
+    // Initial preview
+    updateMapPreview();
+    
+    // Update map preview
+    function updateMapPreview() {
+        console.log("Updating map preview for:", state.selectedMap);
+        const selectedMap = MAPS[state.selectedMap];
+        
+        if (!selectedMap) {
+            console.error("Selected map not found:", state.selectedMap);
+            return;
+        }
+        
+        // Get canvas context
+        const ctx = mapPreviewCanvas.getContext('2d');
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, mapPreviewCanvas.width, mapPreviewCanvas.height);
+        
+        // Calculate cell size to fit the canvas
+        const rows = selectedMap.grid.length;
+        const cols = selectedMap.grid[0].length;
+        const cellSize = Math.min(
+            mapPreviewCanvas.width / cols,
+            mapPreviewCanvas.height / rows
+        );
+        
+        console.log("Drawing map grid:", rows, "x", cols, "cellSize:", cellSize);
+        
+        // Define terrain colors as fallbacks
+        const terrainColors = {
+            0: '#7ec850', // Grass - green
+            1: '#4a90e2', // Water - blue
+            2: '#8b572a', // Mountain - brown
+            3: '#2d9d5c'  // Forest - dark green
+        };
+        
+        // Draw the map grid with colors first (as fallback)
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                const terrainType = selectedMap.grid[y][x];
+                
+                // Draw with fallback color
+                ctx.fillStyle = terrainColors[terrainType] || '#cccccc';
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                
+                // Draw cell border
+                ctx.strokeStyle = '#333333';
+                ctx.lineWidth = 0.5;
+                ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            }
+        }
+        
+        // Update description
+        if (mapDescription) {
+            mapDescription.textContent = selectedMap.description;
+        }
+    }
+}
+
+// Setup team selection
+function setupTeamSelection() {
+    const counterBtns = document.querySelectorAll('.counter-btn');
+    const totalSelected = document.getElementById('total-selected');
+    const startGameBtn = document.getElementById('start-game-btn');
+    
+    console.log("Team selection setup started", counterBtns.length);
+    
+    // Update counters when buttons are clicked
+    counterBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevent default button behavior
+            
+            const action = btn.classList.contains('plus') ? 1 : -1;
+            const characterClass = btn.dataset.class;
+            const counterId = characterClass.toLowerCase() + '-counter';
+            const counter = document.getElementById(counterId);
+            
+            console.log("Counter button clicked:", characterClass, action, counter);
+            
+            if (!counter) {
+                console.error("Counter element not found:", counterId);
+                return;
+            }
+            
+            // Update count
+            let currentCount = parseInt(counter.textContent);
+            let newCount = currentCount + action;
+            
+            // Enforce limits (0-3)
+            newCount = Math.max(0, Math.min(3, newCount));
+            
+            // Update counter display
+            counter.textContent = newCount;
+            
+            // Update state
+            state.player1Team[characterClass] = newCount;
+            
+            console.log("Updated team composition:", state.player1Team);
+            
+            // Update total and validate
+            updateTeamTotal();
+        });
+    });
+    
+    // Update team total and validate
+    function updateTeamTotal() {
+        const total = Object.values(state.player1Team).reduce((sum, count) => sum + count, 0);
+        
+        if (totalSelected) {
+            totalSelected.textContent = total;
+        }
+        
+        console.log("Total selected:", total);
+        
+        // Enable/disable start button based on valid team (exactly 3 characters)
+        if (startGameBtn) {
+            startGameBtn.disabled = total !== 3;
+        }
+        
+        // Update button styling based on count
+        Object.entries(state.player1Team).forEach(([classKey, count]) => {
+            const counterId = classKey.toLowerCase() + '-counter';
+            const counter = document.getElementById(counterId);
+            
+            if (!counter) {
+                console.error("Counter element not found for update:", counterId);
+                return;
+            }
+            
+            const minusBtn = counter.previousElementSibling;
+            const plusBtn = counter.nextElementSibling;
+            
+            if (minusBtn) {
+                // Disable minus button if count is 0
+                minusBtn.disabled = count === 0;
+            }
+            
+            if (plusBtn) {
+                // Disable plus button if count is 3 or total is 3 and this isn't being decreased
+                plusBtn.disabled = count === 3 || (total === 3 && count < 3);
+            }
+        });
+    }
+    
+    // Initial update
+    updateTeamTotal();
+}
+
+// Start the game with selected options
+function startGame() {
+    console.log("Starting game with map:", state.selectedMap, "and team:", state.player1Team);
+    
+    try {
+        // Create battlefield with selected map
+        const canvas = document.getElementById('battlefield');
+        state.battlefield = new Battlefield(canvas, MAPS[state.selectedMap]);
+        
+        // Create characters for both players
+        initializeCharacters();
+        
+        // Setup controls
+        setupControls(state);
+        
+        // Setup AI controls
+        setupAIControls();
+        
+        // Setup terrain hover info
+        setupTerrainHover();
+        
+        // Start the game loop
+        gameLoop();
+        
+        // Initial render
+        updateHUD(state);
+        render();
+        
+        console.log("Game started successfully");
+    } catch (error) {
+        console.error("Error starting game:", error);
+    }
+}
+
+// Initialize characters for both players with random positions
+function initializeCharacters() {
+    // Clear existing characters
+    state.characters = [];
+    
+    // Create player 1 characters based on team selection
+    createTeamCharacters(0, state.player1Team);
+    
+    // Create player 2 characters (AI)
+    createTeamCharacters(1, state.player2Team);
+}
+
+// Create team characters with random positions
+function createTeamCharacters(playerId, teamComposition) {
+    const spawnArea = getSpawnArea(playerId);
+    const usedPositions = new Set();
+    
+    // Name pools for each class - ensure 6 names per class
+    const namesByClass = {
+        MAGE: ['Arcana', 'Merlin', 'Sage', 'Spellweaver', 'Mystic', 'Eldritch'],
+        FIGHTER: ['Valor', 'Ironclad', 'Bastion', 'Sentinel', 'Vanguard', 'Shield'],
+        RANGER: ['Hawk', 'Shadow', 'Scout', 'Hunter', 'Tracker', 'Strider']
+    };
+    
+    // Color codes for each player (Player 1 is red, Player 2 is blue)
+    const playerColors = ['🔴', '🔵'];
+    
+    // Class-specific icons
+    const classIcons = {
+        MAGE: '✨',
+        FIGHTER: '⚔️',
+        RANGER: '🏹'
+    };
+    
+    // Track name index for each class to use them in order
+    const nameIndexByClass = {
+        MAGE: 0,
+        FIGHTER: 0,
+        RANGER: 0
+    };
+    
+    // Create characters for each class based on team composition
+    Object.entries(teamComposition).forEach(([classKey, count]) => {
+        for (let i = 0; i < count; i++) {
+            const position = getRandomValidPosition(spawnArea, usedPositions);
+            
+            // Get the next name in order from the appropriate pool
+            const namePool = namesByClass[classKey];
+            const nameIndex = nameIndexByClass[classKey];
+            const characterName = namePool[nameIndex % namePool.length];
+            
+            // Increment the name index for this class
+            nameIndexByClass[classKey]++;
+            
+            // Create a name with player color, class icon, and name
+            const name = `${playerColors[playerId]} ${classIcons[classKey]} ${characterName}`;
+            
+            state.characters.push(
+                new Character(name, CLASSES[classKey], playerId, position)
+            );
+        }
+    });
+}
+
+// Get spawn area for a player
+function getSpawnArea(playerId) {
+    const map = MAPS[state.selectedMap];
+    const rows = map.grid.length;
+    const cols = map.grid[0].length;
+    
+    // Player 1 spawns in the top third, Player 2 in the bottom third
+    if (playerId === 0) {
+        return {
+            minRow: 0,
+            maxRow: Math.floor(rows / 3),
+            minCol: 0,
+            maxCol: cols - 1
+        };
+    } else {
+        return {
+            minRow: Math.floor(rows * 2 / 3),
+            maxRow: rows - 1,
+            minCol: 0,
+            maxCol: cols - 1
+        };
+    }
+}
+
+// Get a random valid position within a spawn area
+function getRandomValidPosition(spawnArea, usedPositions) {
+    const map = MAPS[state.selectedMap];
+    const { minRow, maxRow, minCol, maxCol } = spawnArea;
+    
+    // Try to find a valid position (not water or mountain, not already used)
+    let attempts = 0;
+    let position;
+    
+    do {
+        const row = Math.floor(Math.random() * (maxRow - minRow + 1)) + minRow;
+        const col = Math.floor(Math.random() * (maxCol - minCol + 1)) + minCol;
+        
+        // Check if position is valid (not water or mountain)
+        const terrainType = map.grid[row][col];
+        const isValidTerrain = terrainType !== 1 && terrainType !== 2; // Not water or mountain
+        
+        position = { x: col, y: row };
+        const positionKey = `${position.x},${position.y}`;
+        
+        // If position is valid and not used, use it
+        if (isValidTerrain && !usedPositions.has(positionKey)) {
+            usedPositions.add(positionKey);
+            return position;
+        }
+        
+        attempts++;
+    } while (attempts < 100); // Prevent infinite loop
+    
+    // Fallback: if we can't find a valid position, use a default one
+    console.warn('Could not find valid random position, using fallback');
+    return { x: minCol + 1, y: minRow + 1 };
+}
+
+// Setup terrain hover info
+function setupTerrainHover() {
+    const canvas = document.getElementById('battlefield');
+    const terrainInfo = document.getElementById('terrain-info');
+    let hoverTimeout;
+    
+    canvas.addEventListener('mousemove', (e) => {
+        // Clear any existing timeout
+        if (hoverTimeout) {
+            clearTimeout(hoverTimeout);
+        }
+        
+        // Get mouse position relative to canvas
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // Convert to grid coordinates
+        const gridPos = state.battlefield.screenToGrid(x, y);
+        
+        // Set timeout for hover (500ms)
+        hoverTimeout = setTimeout(() => {
+            // Get terrain info
+            const terrainType = state.battlefield.getTerrainAt(gridPos.x, gridPos.y);
+            const terrainName = getTerrainName(terrainType);
+            const movementCost = state.battlefield.map.movementCosts[terrainType] || 'N/A';
+            
+            // Update tooltip content
+            terrainInfo.innerHTML = `
+                <strong>${terrainName}</strong><br>
+                Movement Cost: ${movementCost}x
+            `;
+            
+            // Position and show tooltip
+            terrainInfo.style.left = `${e.clientX + 10}px`;
+            terrainInfo.style.top = `${e.clientY + 10}px`;
+            terrainInfo.style.display = 'block';
+        }, 500);
+    });
+    
+    // Hide tooltip when mouse leaves canvas
+    canvas.addEventListener('mouseleave', () => {
+        if (hoverTimeout) {
+            clearTimeout(hoverTimeout);
+        }
+        terrainInfo.style.display = 'none';
+    });
+    
+    // Hide tooltip when mouse moves quickly
+    canvas.addEventListener('mouseout', () => {
+        if (hoverTimeout) {
+            clearTimeout(hoverTimeout);
+        }
+        terrainInfo.style.display = 'none';
+    });
+}
+
+// Get terrain name from type
+function getTerrainName(type) {
+    switch (type) {
+        case 0: return 'Grass';
+        case 1: return 'Water';
+        case 2: return 'Mountain';
+        case 3: return 'Forest';
+        default: return 'Unknown';
+    }
 }
 
 // Setup AI controls
@@ -99,24 +492,42 @@ function getDifficultyName(level) {
 
 // Add log entry to the game log
 function addLogEntry(message, classes = []) {
+    // Get the log entries container
     const logEntries = document.getElementById('log-entries');
-    const entry = document.createElement('div');
-    entry.className = 'log-entry ' + classes.join(' ');
     
-    // Handle multiline messages
-    if (message.includes('\n')) {
-        message.split('\n').forEach((line, index) => {
-            if (index > 0) {
-                entry.appendChild(document.createElement('br'));
-            }
-            entry.appendChild(document.createTextNode(line));
-        });
-    } else {
-        entry.textContent = message;
+    // Check if the container exists
+    if (!logEntries) {
+        console.error("Log entries container not found");
+        return;
     }
     
+    // Create a new log entry element
+    const entry = document.createElement('div');
+    
+    // Add the base log-entry class
+    entry.className = 'log-entry';
+    
+    // Add additional classes if provided
+    if (Array.isArray(classes) && classes.length > 0) {
+        classes.forEach(cls => {
+            if (cls && typeof cls === 'string') {
+                entry.classList.add(cls);
+            }
+        });
+    }
+    
+    // Set the message content
+    entry.textContent = message;
+    
+    // Add the entry to the log
     logEntries.appendChild(entry);
+    
+    // Scroll to the bottom to show the newest entry
     logEntries.scrollTop = logEntries.scrollHeight;
+    
+    console.log("Log entry added:", message);
+    
+    return entry;
 }
 
 // Game loop
@@ -243,14 +654,7 @@ async function runAITurn() {
                         }
                         
                         // Log the attack
-                        logStandardAction({
-                            type: 'special',
-                            actor: character,
-                            target: targetCharacter,
-                            ability: character.abilities[1],
-                            result: result,
-                            isAI: true
-                        });
+                        logStandardAction('special', character, target, targetCharacter, true, character.abilities[1], result);
                         
                         actionsTaken = true;
                         actionCounter++; // Increment action counter
@@ -298,14 +702,7 @@ async function runAITurn() {
                         character.hasAttacked = true;
                         
                         // Log the attack
-                        logStandardAction({
-                            type: 'attack',
-                            actor: character,
-                            target: targetCharacter,
-                            ability: character.abilities[0],
-                            result: result,
-                            isAI: true
-                        });
+                        logStandardAction('attack', character, target, targetCharacter, true, character.abilities[0], result);
                         
                         actionsTaken = true;
                         actionCounter++; // Increment action counter
@@ -365,13 +762,7 @@ async function runAITurn() {
                     character.hasMoved = true;
                     
                     // Log the move
-                    logStandardAction({
-                        type: 'move',
-                        actor: character,
-                        fromPosition: originalPosition,
-                        position: bestMove,
-                        isAI: true
-                    });
+                    logStandardAction('move', character, bestMove, null, true, null, null);
                     
                     actionsTaken = true;
                     actionCounter++; // Increment action counter
@@ -425,14 +816,7 @@ async function runAITurn() {
                                     character.hasAttacked = true;
                                     
                                     // Log the attack
-                                    logStandardAction({
-                                        type: 'special',
-                                        actor: character,
-                                        target: targetCharacter,
-                                        ability: character.abilities[1],
-                                        result: result,
-                                        isAI: true
-                                    });
+                                    logStandardAction('special', character, target, targetCharacter, true, character.abilities[1], result);
                                     
                                     actionsTaken = true;
                                     actionCounter++; // Increment action counter
@@ -480,14 +864,7 @@ async function runAITurn() {
                                     character.hasAttacked = true;
                                     
                                     // Log the attack
-                                    logStandardAction({
-                                        type: 'attack',
-                                        actor: character,
-                                        target: targetCharacter,
-                                        ability: character.abilities[0],
-                                        result: result,
-                                        isAI: true
-                                    });
+                                    logStandardAction('attack', character, target, targetCharacter, true, character.abilities[0], result);
                                     
                                     actionsTaken = true;
                                     actionCounter++; // Increment action counter
@@ -520,11 +897,7 @@ async function runAITurn() {
         const aiCharacter = aiCharacters.length > 0 ? aiCharacters[0] : { playerId: 1, name: 'AI' };
         
         // Log the end turn action
-        logStandardAction({
-            type: 'endTurn',
-            actor: aiCharacter,
-            isAI: true
-        });
+        logStandardAction('endTurn', aiCharacter, null, null, true);
         
         // End turn
         nextTurn();
@@ -705,16 +1078,19 @@ function showAIThinkingIndicator() {
 
 // Check if the game is over
 function checkGameOver() {
+    // Check if all characters of a player are defeated
     const player1Characters = state.characters.filter(c => c.playerId === 0 && c.health > 0);
     const player2Characters = state.characters.filter(c => c.playerId === 1 && c.health > 0);
     
     if (player1Characters.length === 0) {
-        alert('Player 2 wins!');
+        // Player 2 wins
+        addLogEntry('🏆 Game Over: Player 2 Wins! 🏆', ['turn-change']);
         return true;
     }
     
     if (player2Characters.length === 0) {
-        alert('Player 1 wins!');
+        // Player 1 wins
+        addLogEntry('🏆 Game Over: Player 1 Wins! 🏆', ['turn-change']);
         return true;
     }
     
@@ -723,29 +1099,34 @@ function checkGameOver() {
 
 // Change turns
 export function nextTurn() {
-    // Reset action states for all characters of the current player
+    // Reset all characters for the current player
     state.characters
         .filter(c => c.playerId === state.currentPlayer)
-        .forEach(c => {
-            c.hasMoved = false;
-            c.hasAttacked = false;
-        });
+        .forEach(c => c.resetActions());
     
-    // Switch to next player
-    state.currentPlayer = (state.currentPlayer + 1) % state.players.length;
+    // Switch to the next player
+    state.currentPlayer = (state.currentPlayer + 1) % 2;
     
-    // Reset phase
+    // Update the turn display
+    document.getElementById('current-turn').textContent = `Current Turn: Player ${state.currentPlayer + 1}`;
+    
+    // Log the turn change
+    const playerEmoji = state.currentPlayer === 0 ? '🔴' : '🔵';
+    addLogEntry(`${playerEmoji} Player ${state.currentPlayer + 1}'s turn`, ['turn-change']);
+    
+    // Reset the phase
     state.phase = 'select';
     state.selectedCharacter = null;
     
-    // Update turn counter
-    state.currentTurn++;
+    // Update the UI
+    updateHUD();
     
-    // Update UI
-    updateHUD(state);
-    
-    // Log turn change
-    addLogEntry(`Player ${state.currentPlayer + 1}'s turn`, ['turn-change']);
+    // If it's player 2's turn and AI is enabled, run the AI turn
+    if (state.currentPlayer === 1 && state.useAIForPlayer2) {
+        document.body.classList.add('ai-turn');
+    } else {
+        document.body.classList.remove('ai-turn');
+    }
 }
 
 // Export state and functions for use in other modules
@@ -769,73 +1150,258 @@ function toGridCoord(x, y) {
 }
 
 /**
- * Log a standardized action message
- * @param {Object} params - Action parameters
- * @param {string} params.type - Action type: 'move', 'attack', 'special', 'endTurn'
- * @param {Object} params.actor - Character performing the action
- * @param {Object} [params.target] - Target character (for attacks)
- * @param {Object} [params.position] - Target position (for moves)
- * @param {Object} [params.fromPosition] - Starting position (for moves)
- * @param {Object} [params.ability] - Ability used (for attacks/special)
- * @param {Object} [params.result] - Attack result
- * @param {boolean} params.isAI - Whether the action is performed by AI
+ * Log a standard action with consistent formatting
+ * @param {string} type - Action type ('move', 'attack', 'special', 'endTurn')
+ * @param {Object} actor - Character performing the action
+ * @param {Object} position - Target position for movement
+ * @param {Object} target - Target character for attacks
+ * @param {boolean} isAI - Whether this is an AI action
+ * @param {Object} [ability] - Ability used (for attacks/special)
+ * @param {Object} [result] - Attack result
  */
-function logStandardAction(params) {
-    const { type, actor, target, position, fromPosition, ability, result, isAI } = params;
+function logStandardAction(type, actor, position, target, isAI = false, ability = null, result = null) {
+    // Default classes
+    const classes = [];
     
-    // Base classes for all logs
-    const classes = [isAI ? 'ai-action' : 'player-action'];
+    // Add the type as a class
+    if (type) {
+        classes.push(type);
+    }
     
-    // Actor identifier
-    const actorName = actor.name;
-    const actorPos = actor.position ? toGridCoord(actor.position.x, actor.position.y) : '';
+    // Add AI-specific classes if applicable
+    if (isAI) {
+        classes.push('ai');
+    }
     
-    let message = '';
+    // Get actor name (with fallback)
+    let actorName = "Unknown";
+    if (actor) {
+        if (actor.name) {
+            actorName = actor.name;
+        } else if (typeof actor.playerId !== 'undefined') {
+            actorName = `Player ${actor.playerId + 1}`;
+        }
+    }
+    
+    // Build the message based on action type
+    let message = "";
     
     switch (type) {
         case 'move':
-            classes.push('move');
-            const fromCoord = toGridCoord(fromPosition.x, fromPosition.y);
-            const toCoord = toGridCoord(position.x, position.y);
-            message = `${actorName} moves from ${fromCoord} to ${toCoord}`;
+            // Format: "🚶 Character → A1"
+            const moveCoord = position ? toGridCoord(position.x, position.y) : "?";
+            message = `🚶 ${actorName} → ${moveCoord}`;
             break;
             
         case 'attack':
         case 'special':
-            classes.push('attack');
-            const abilityName = ability ? ability.displayName : 'Attack';
-            const targetPos = target ? toGridCoord(target.position.x, target.position.y) : '';
+            // Get the appropriate ability icon
+            const abilityIcon = ability && ability.icon ? ability.icon : (type === 'attack' ? '⚔️' : '✨');
             
-            message = `${actorName} (${actorPos}) uses ${abilityName}`;
+            // Determine if this is a mage targeting a space (for area effects)
+            const isMageAreaAttack = actor && actor.class && actor.class.name === 'Mage' && type === 'special';
+            const isFireBlast = ability && ability.displayName === 'Fire Blast';
             
+            // Get target name or coordinate
+            let targetText;
             if (target) {
-                message += ` on ${target.name} (${targetPos})`;
+                targetText = target.name;
+            } else if (position && (isMageAreaAttack || isFireBlast)) {
+                // For mage area attacks or fire blast without a specific target, show the coordinates
+                const coordText = toGridCoord(position.x, position.y);
+                targetText = isFireBlast ? `square ${coordText}` : `area ${coordText}`;
+            } else {
+                targetText = "target";
             }
             
+            // Format: "⚔️ Character → Target (5💥)" or "⚔️ Character → Target (❌)"
+            message = `${abilityIcon} ${actorName} → ${targetText}`;
+            
+            // Add hit/miss and damage information if available
             if (result) {
                 if (result.hit) {
                     classes.push('hit');
-                    message += `: Hit! ${result.damage} damage`;
                     
+                    // More detailed damage information
+                    let damageText = `${result.damage}💥`;
+                    
+                    // Add bonus damage info if applicable
+                    if (result.bonusDamage > 0) {
+                        damageText += ` (+${result.bonusDamage} bonus)`;
+                    }
+                    
+                    // Add save info if applicable
+                    if (ability && ability.saveDifficulty > 0) {
+                        const saveSuccess = result.saveRoll >= ability.saveDifficulty;
+                        if (saveSuccess) {
+                            damageText += ` (Save ✓)`;
+                        }
+                    }
+                    
+                    message += ` (${damageText})`;
+                    
+                    // Add defeat indicator if target was defeated
                     if (target && target.health <= 0) {
-                        message += ' - Target defeated!';
+                        message += ' ☠️ Defeated!';
+                    } else if (target) {
+                        // Show remaining health
+                        message += ` [${target.health}/${target.class.healthPoints} HP]`;
                     }
                 } else {
                     classes.push('miss');
-                    message += `: Miss!`;
+                    message += ' (❌ Miss)';
                 }
             }
             break;
             
         case 'endTurn':
-            classes.push('turn-end');
-            message = `${isAI ? 'AI' : `Player ${actor.playerId + 1}`} ends turn`;
+            // Format: "🔄 Player 1 ends turn" or "🔄 AI ends turn"
+            const turnIcon = isAI ? '🤖' : '👤';
+            message = `🔄 ${turnIcon} ${isAI ? 'AI' : actorName} ends turn`;
             break;
             
         default:
-            message = `Unknown action: ${type}`;
+            // Generic message for unknown action types
+            message = `${actorName} performed ${type}`;
     }
     
+    // Add the log entry
     addLogEntry(message, classes);
-    return message;
+}
+
+// Handle attack action
+function handleAttackAction(isSpecial = false) {
+    if (!state.selectedCharacter) {
+        addLogEntry(`No character selected`, ['move-error']);
+        return false;
+    }
+    
+    if (state.selectedCharacter.hasAttacked) {
+        addLogEntry(`Character has already attacked`, ['move-error']);
+        return false;
+    }
+    
+    // Enter attack phase
+    state.phase = 'attack';
+    
+    // Set ability index based on isSpecial flag
+    const abilityIndex = isSpecial ? 1 : 0;
+    
+    // Check if there are valid targets
+    const validTargets = state.characters.filter(target => 
+        target.playerId !== state.currentPlayer && 
+        target.health > 0 &&
+        state.selectedCharacter.canAttackTarget(target, abilityIndex)
+    );
+    
+    if (validTargets.length === 0) {
+        addLogEntry(`No valid targets in range`, ['move-error']);
+        state.phase = 'select';
+        return false;
+    }
+    
+    // Update UI
+    updateHUD(state);
+    
+    return true;
+}
+
+// Handle end turn action
+function handleEndTurnAction() {
+    // Log the action
+    logStandardAction('endTurn', { playerId: state.currentPlayer, name: `Player ${state.currentPlayer + 1}` }, null, null, false);
+    
+    // End the turn
+    endTurn();
+    
+    return true;
+}
+
+// Handle battlefield click
+function handleBattlefieldClick(x, y) {
+    // Convert screen coordinates to grid coordinates
+    const gridPos = state.battlefield.screenToGrid(x, y);
+    
+    // Check if there's a character at the clicked position
+    const clickedCharacter = state.characters.find(
+        char => char.position.x === gridPos.x && char.position.y === gridPos.y && char.health > 0
+    );
+    
+    // Handle based on current phase
+    switch (state.phase) {
+        case 'select':
+            // If clicked on a character, select it
+            if (clickedCharacter) {
+                return selectCharacter(clickedCharacter);
+            }
+            break;
+            
+        case 'move':
+            // If clicked on a valid move position, move there
+            if (state.selectedCharacter) {
+                const validMoves = state.selectedCharacter.getValidMoves(state.battlefield);
+                const isValidMove = validMoves.some(move => move.x === gridPos.x && move.y === gridPos.y);
+                
+                if (isValidMove) {
+                    // Log the action
+                    logStandardAction('move', state.selectedCharacter, gridPos, null, false);
+                    
+                    // Move the character
+                    state.selectedCharacter.move(gridPos.x, gridPos.y);
+                    state.selectedCharacter.hasMoved = true;
+                    
+                    // Return to select phase
+                    state.phase = 'select';
+                    
+                    // Update UI
+                    updateHUD(state);
+                    
+                    return true;
+                } else if (clickedCharacter && clickedCharacter.playerId === state.currentPlayer) {
+                    // If clicked on another friendly character, select it instead
+                    return selectCharacter(clickedCharacter);
+                } else {
+                    addLogEntry(`Invalid move position`, ['move-error']);
+                }
+            }
+            break;
+            
+        case 'attack':
+            // If clicked on a valid target, attack it
+            if (state.selectedCharacter && clickedCharacter && clickedCharacter.playerId !== state.currentPlayer) {
+                // Get the current ability index from the UI
+                const abilityIndex = document.getElementById('special-btn').classList.contains('active') ? 1 : 0;
+                
+                // Check if the target is valid
+                if (state.selectedCharacter.canAttackTarget(clickedCharacter, abilityIndex)) {
+                    // Perform attack
+                    const result = state.selectedCharacter.attack(clickedCharacter, abilityIndex);
+                    
+                    // Log the action
+                    const ability = state.selectedCharacter.abilities[abilityIndex];
+                    logStandardAction(abilityIndex === 0 ? 'attack' : 'special', state.selectedCharacter, null, clickedCharacter, false, ability, result);
+                    
+                    // Mark character as having attacked
+                    state.selectedCharacter.hasAttacked = true;
+                    
+                    // Return to select phase
+                    state.phase = 'select';
+                    
+                    // Update UI
+                    updateHUD(state);
+                    
+                    return true;
+                } else {
+                    addLogEntry(`Target out of range`, ['move-error']);
+                }
+            } else if (clickedCharacter && clickedCharacter.playerId === state.currentPlayer) {
+                // If clicked on another friendly character, select it instead
+                return selectCharacter(clickedCharacter);
+            } else {
+                addLogEntry(`Invalid target`, ['move-error']);
+            }
+            break;
+    }
+    
+    return false;
 }

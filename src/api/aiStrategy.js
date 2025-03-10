@@ -191,4 +191,133 @@ function calculateDistance(pos1, pos2) {
         Math.pow(pos1.x - pos2.x, 2) + 
         Math.pow(pos1.y - pos2.y, 2)
     );
+}
+
+/**
+ * Generate a move action
+ * @param {import('./gameState.js').GameState} state - Current game state
+ * @param {Object} character - Character to generate action for
+ * @param {Array} enemies - List of enemy characters
+ * @param {Object} classData - Character class data
+ * @param {number} difficulty - AI difficulty level
+ * @returns {Object|null} Move action or null if no move is possible
+ */
+function generateMoveAction(state, character, enemies, classData, difficulty) {
+    // Get valid moves
+    const validMoves = getValidMoves(state, character);
+    if (validMoves.length === 0) {
+        return null;
+    }
+    
+    // For Fighter class, prioritize getting close to Rangers, then Mages, then others
+    if (character.class === 'Fighter') {
+        return generateFighterMoveAction(state, character, enemies, validMoves, difficulty);
+    }
+    
+    // For other classes, move towards closest enemy
+    // Sort enemies by distance
+    const sortedEnemies = [...enemies].sort((a, b) => {
+        const distA = calculateDistance(character.position, a.position);
+        const distB = calculateDistance(character.position, b.position);
+        return distA - distB;
+    });
+    
+    if (sortedEnemies.length === 0) {
+        return null;
+    }
+    
+    // Get closest enemy
+    const closestEnemy = sortedEnemies[0];
+    
+    // Sort moves by distance to closest enemy (prefer moves that get closer)
+    const sortedMoves = [...validMoves].sort((a, b) => {
+        const distA = calculateDistance(a, closestEnemy.position);
+        const distB = calculateDistance(b, closestEnemy.position);
+        return distA - distB;
+    });
+    
+    // Choose the best move
+    return {
+        type: 'move',
+        position: sortedMoves[0]
+    };
+}
+
+/**
+ * Generate a move action specifically for Fighter class
+ * @param {import('./gameState.js').GameState} state - Current game state
+ * @param {Object} character - Fighter character
+ * @param {Array} enemies - List of enemy characters
+ * @param {Array} validMoves - List of valid move positions
+ * @param {number} difficulty - AI difficulty level
+ * @returns {Object|null} Move action or null if no move is possible
+ */
+function generateFighterMoveAction(state, character, enemies, validMoves, difficulty) {
+    console.log("Generating Fighter move action");
+    
+    if (validMoves.length === 0) {
+        return null;
+    }
+    
+    // Separate enemies by class
+    const rangerEnemies = enemies.filter(e => e.class === 'Ranger');
+    const mageEnemies = enemies.filter(e => e.class === 'Mage');
+    const otherEnemies = enemies.filter(e => e.class !== 'Ranger' && e.class !== 'Mage');
+    
+    console.log(`Fighter targeting priorities: Rangers(${rangerEnemies.length}), Mages(${mageEnemies.length}), Others(${otherEnemies.length})`);
+    
+    // Prioritize Rangers, then Mages, then others
+    let targetEnemies = rangerEnemies.length > 0 ? rangerEnemies : 
+                        mageEnemies.length > 0 ? mageEnemies : 
+                        otherEnemies;
+    
+    if (targetEnemies.length === 0) {
+        return null;
+    }
+    
+    // Sort target enemies by distance
+    const sortedTargets = [...targetEnemies].sort((a, b) => {
+        const distA = calculateDistance(character.position, a.position);
+        const distB = calculateDistance(character.position, b.position);
+        return distA - distB;
+    });
+    
+    // Get closest target
+    const closestTarget = sortedTargets[0];
+    console.log(`Fighter targeting: ${closestTarget.class} at position (${closestTarget.position.x}, ${closestTarget.position.y})`);
+    
+    // Get fighter's attack range
+    const fighterAbility = Object.values(ABILITIES).find(
+        ability => ability.classRestriction === 'Fighter' && !ability.costMove
+    );
+    const attackRange = fighterAbility ? fighterAbility.range : 10;
+    const gridAttackRange = attackRange / 10; // Convert from feet to grid units
+    
+    console.log(`Fighter attack range: ${attackRange} feet (${gridAttackRange} grid units)`);
+    
+    // Sort moves by how close they get to being within attack range of the target
+    const sortedMoves = [...validMoves].sort((a, b) => {
+        const distA = calculateDistance(a, closestTarget.position);
+        const distB = calculateDistance(b, closestTarget.position);
+        
+        // If either move puts us in attack range, prioritize it
+        const aInRange = distA <= gridAttackRange;
+        const bInRange = distB <= gridAttackRange;
+        
+        if (aInRange && !bInRange) return -1;
+        if (!aInRange && bInRange) return 1;
+        
+        // Otherwise, get as close as possible
+        return distA - distB;
+    });
+    
+    const bestMove = sortedMoves[0];
+    const distanceToTarget = calculateDistance(bestMove, closestTarget.position);
+    console.log(`Fighter best move: (${bestMove.x}, ${bestMove.y}), distance to target: ${distanceToTarget}, in range: ${distanceToTarget <= gridAttackRange}`);
+    
+    // Choose the best move
+    return {
+        type: 'move',
+        position: bestMove
+    };
 } 

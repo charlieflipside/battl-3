@@ -80,90 +80,148 @@ body {
 .game-log {
     grid-area: log;
     background-color: #fff;
-    border-radius: 5px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     padding: 15px;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     height: 100%;
-    max-height: 100%;
     overflow: hidden;
+    min-height: 400px;
 }
 
 .game-log h3 {
     margin-bottom: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
-    flex-shrink: 0;
+    color: #2c3e50;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+    font-size: 1.2em;
+    display: flex;
+    align-items: center;
 }
 
-/* Log entries with fixed height and scrolling */
+.game-log h3::before {
+    content: "📜";
+    margin-right: 8px;
+}
+
+/* Log entries container */
 .log-entries {
-    height: calc(100% - 50px); /* Fixed height: container height minus header height */
-    min-height: 500px; /* Minimum height to ensure scrolling */
-    max-height: 100%; /* Maximum height to prevent overflow */
-    overflow-y: auto; /* Enable vertical scrolling */
-    overflow-x: hidden; /* Hide horizontal scrollbar */
-    font-size: 14px;
-    scrollbar-width: thin;
-    border: 1px solid #eee; /* Add subtle border to visually contain scrollable area */
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid #ddd;
     border-radius: 4px;
-    padding: 5px;
+    padding: 8px;
+    background-color: #f9f9f9;
+    height: calc(100% - 40px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 300px;
 }
 
-/* Custom scrollbar for better appearance */
+/* Scrollbar styling */
 .log-entries::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
 }
 
 .log-entries::-webkit-scrollbar-track {
     background: #f1f1f1;
-    border-radius: 10px;
+    border-radius: 4px;
 }
 
 .log-entries::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 10px;
+    background: #bbb;
+    border-radius: 4px;
 }
 
 .log-entries::-webkit-scrollbar-thumb:hover {
-    background: #aaa;
+    background: #999;
 }
 
+/* Individual log entry */
 .log-entry {
-    padding: 8px;
-    border-bottom: 1px solid #eee;
-    line-height: 1.4;
+    padding: 6px 8px;
+    background-color: #fff;
+    border-radius: 4px;
+    border-left: 3px solid #ddd;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    font-size: 0.85em;
+    line-height: 1.3;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-.log-entry:last-child {
-    border-bottom: none;
+.log-entry:hover {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
 }
 
+/* Move action */
 .log-entry.move {
-    color: #4CAF50;
+    border-left-color: #3498db;
+    background-color: #ebf5fb;
 }
 
-.log-entry.attack {
-    color: #F44336;
+/* Attack action - Player 1 (red) */
+.log-entry.attack:not(.ai) {
+    border-left-color: #e74c3c;
+    background-color: #fdedec;
 }
 
+/* Attack action - Player 2 (blue) */
+.log-entry.attack.ai {
+    border-left-color: #3498db;
+    background-color: #ebf5fb;
+}
+
+/* Special action - Player 1 (red) */
+.log-entry.special:not(.ai) {
+    border-left-color: #e74c3c;
+    background-color: #fdedec;
+}
+
+/* Special action - Player 2 (blue) */
+.log-entry.special.ai {
+    border-left-color: #3498db;
+    background-color: #ebf5fb;
+}
+
+/* Hit result */
 .log-entry.hit {
     font-weight: bold;
+    color: #c0392b;
 }
 
+/* Miss result */
 .log-entry.miss {
     font-style: italic;
-    color: #666;
+    color: #7f8c8d;
 }
 
+/* Error message */
 .log-entry.move-error {
-    color: #ff6600;
+    border-left-color: #e74c3c;
+    background-color: #fdedec;
+    color: #c0392b;
     font-style: italic;
 }
 
-.log-entry.player-action {
-    color: #333;
+/* AI action */
+.log-entry.ai {
+    font-style: italic;
+}
+
+/* Turn change */
+.log-entry.turn-change {
+    background-color: #2c3e50;
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    border-left: none;
+    padding: 8px;
+    margin: 4px 0;
 }
 
 #battlefield {
@@ -207,12 +265,25 @@ body {
 /* Character info panel with grid layout */
 #character-header {
     grid-area: character-header;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    border: 2px solid #f39c12;
 }
 
 #character-stats {
-    margin-top: 10px;
-    margin-bottom: 15px;
-    font-size: 14px;
+    font-size: 0.95em;
+    line-height: 1.4;
+}
+
+#character-stats .name {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #2c3e50;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
 }
 
 /* Action buttons */
@@ -299,8 +370,25 @@ body {
     text-decoration: line-through;
 }
 
+/* Selected character highlight */
 .selected {
-    border: 2px solid yellow;
+    outline: 3px solid #f39c12;
+    box-shadow: 0 0 15px rgba(243, 156, 18, 0.7);
+    position: relative;
+    z-index: 10;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 10px rgba(243, 156, 18, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(243, 156, 18, 0.9);
+    }
+    100% {
+        box-shadow: 0 0 10px rgba(243, 156, 18, 0.7);
+    }
 }
 
 /* Responsive adjustments */
@@ -377,30 +465,6 @@ body {
     font-weight: bold;
 }
 
-/* AI Log Entries */
-.log-entry.ai {
-    color: #0066cc;
-    font-style: italic;
-}
-
-.log-entry.ai-action {
-    color: #0066cc;
-    font-weight: bold;
-}
-
-.log-entry.turn-change {
-    color: #333;
-    font-weight: bold;
-    border-top: 1px solid #ddd;
-    padding-top: 5px;
-    margin-top: 5px;
-}
-
-.log-entry.turn-end {
-    color: #666;
-    font-style: italic;
-}
-
 /* AI Turn Indicator */
 body.ai-turn .battlefield-container {
     position: relative;
@@ -417,4 +481,235 @@ body.ai-turn .battlefield-container::after {
     border-radius: 4px;
     font-weight: bold;
     z-index: 100;
+}
+
+/* Modal Styles */
+.modal {
+    display: flex;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background-color: #f4f4f4;
+    padding: 20px;
+    border-radius: 8px;
+    width: 80%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* Setup Sections */
+.setup-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #fff;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.setup-section h3 {
+    margin-bottom: 15px;
+    color: #333;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+}
+
+/* Map Selection */
+.map-selection {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.map-options {
+    flex: 1;
+    min-width: 200px;
+}
+
+.map-options label {
+    display: block;
+    margin-bottom: 10px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.map-options label:hover {
+    background-color: #f0f0f0;
+}
+
+.map-options input[type="radio"] {
+    margin-right: 10px;
+}
+
+.map-options input[type="radio"]:checked + span {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.map-preview {
+    flex: 2;
+    min-width: 300px;
+}
+
+#map-preview-canvas {
+    border: 1px solid #ddd;
+    background-color: #fff;
+    display: block;
+    margin-bottom: 10px;
+}
+
+#map-description {
+    font-style: italic;
+    color: #666;
+}
+
+/* Team Selection */
+.team-selection {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: space-between;
+}
+
+.character-option {
+    flex: 1;
+    min-width: 200px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.character-option h4 {
+    margin-bottom: 10px;
+    color: #2c3e50;
+}
+
+.character-stats {
+    margin-bottom: 15px;
+    font-size: 0.9em;
+}
+
+.character-counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.counter-btn {
+    width: 30px;
+    height: 30px;
+    border: none;
+    background-color: #2c3e50;
+    color: white;
+    font-size: 1.2em;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.counter-btn:hover {
+    background-color: #34495e;
+}
+
+.counter-btn:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+}
+
+.counter {
+    margin: 0 10px;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.team-summary {
+    margin-top: 15px;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* Setup Controls */
+.setup-controls {
+    text-align: center;
+    margin-top: 20px;
+}
+
+#start-game-btn {
+    padding: 12px 30px;
+    font-size: 1.2em;
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#start-game-btn:hover {
+    background-color: #2ecc71;
+}
+
+#start-game-btn:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+}
+
+/* Terrain Info Tooltip */
+.terrain-info {
+    position: absolute;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    pointer-events: none;
+    display: none;
+    z-index: 100;
+    max-width: 200px;
+}
+
+/* Game Over Modal */
+.winner-message {
+    font-size: 1.5em;
+    text-align: center;
+    margin: 20px 0;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+.game-over-controls {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+#restart-game-btn {
+    background-color: #27ae60;
+}
+
+#restart-game-btn:hover {
+    background-color: #2ecc71;
+}
+
+#close-game-over-btn {
+    background-color: #7f8c8d;
+}
+
+#close-game-over-btn:hover {
+    background-color: #95a5a6;
 }

@@ -303,4 +303,54 @@ export class Battlefield {
             c.health > 0
         );
     }
+
+    /**
+     * Set a new map for the battlefield
+     * @param {Object} map - The map data
+     */
+    setMap(map) {
+        this.map = map;
+        this.rows = map.grid.length;
+        this.cols = map.grid[0].length;
+        this.cellSize = Math.min(
+            (this.canvas.width - this.gridPadding) / this.cols,
+            (this.canvas.height - this.gridPadding) / this.rows
+        );
+    }
+
+    /**
+     * Get the terrain type at a specific grid position
+     * @param {number} x - Grid x coordinate
+     * @param {number} y - Grid y coordinate
+     * @returns {number} Terrain type (0: grass, 1: water, 2: mountain, 3: forest)
+     */
+    getTerrainAt(x, y) {
+        // Check if coordinates are within bounds
+        if (x >= 0 && x < this.cols && y >= 0 && y < this.rows) {
+            return this.map.grid[y][x];
+        }
+        return -1; // Invalid terrain
+    }
+
+    /**
+     * Convert screen coordinates to grid coordinates
+     * @param {number} screenX - Screen X coordinate
+     * @param {number} screenY - Screen Y coordinate
+     * @returns {Object} Grid coordinates {x, y}
+     */
+    screenToGrid(screenX, screenY) {
+        // Adjust for padding
+        const adjustedX = screenX - this.gridPadding;
+        const adjustedY = screenY - this.gridPadding;
+        
+        // Convert to grid coordinates
+        const gridX = Math.floor(adjustedX / this.cellSize);
+        const gridY = Math.floor(adjustedY / this.cellSize);
+        
+        // Ensure coordinates are within bounds
+        return {
+            x: Math.max(0, Math.min(gridX, this.cols - 1)),
+            y: Math.max(0, Math.min(gridY, this.rows - 1))
+        };
+    }
 }

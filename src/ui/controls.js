@@ -10,8 +10,27 @@ function toGridCoord(x, y) {
 // Add log entry to the game log
 function addLogEntry(message, classes = []) {
     const logEntries = document.getElementById('log-entries');
+    
+    // Check if the container exists
+    if (!logEntries) {
+        console.error("Log entries container not found");
+        return;
+    }
+    
+    // Create a new log entry element
     const entry = document.createElement('div');
-    entry.className = 'log-entry ' + classes.join(' ');
+    
+    // Add the base log-entry class
+    entry.className = 'log-entry';
+    
+    // Add additional classes if provided
+    if (Array.isArray(classes) && classes.length > 0) {
+        classes.forEach(cls => {
+            if (cls && typeof cls === 'string') {
+                entry.classList.add(cls);
+            }
+        });
+    }
     
     // Handle multiline messages
     if (message.includes('\n')) {
@@ -25,8 +44,13 @@ function addLogEntry(message, classes = []) {
         entry.textContent = message;
     }
     
+    // Add the entry to the log
     logEntries.appendChild(entry);
+    
+    // Scroll to the bottom to show the newest entry
     logEntries.scrollTop = logEntries.scrollHeight;
+    
+    return entry;
 }
 
 // Set up all the UI controls and event handlers
@@ -177,13 +201,7 @@ export function setupControls(state) {
                 state.selectedCharacter.hasMoved = true;
                 
                 // Log the move using standardized format
-                window.logStandardAction({
-                    type: 'move',
-                    actor: state.selectedCharacter,
-                    fromPosition: originalPosition,
-                    position: state.selectedCharacter.position,
-                    isAI: false
-                });
+                window.logStandardAction('move', state.selectedCharacter, state.selectedCharacter.position, null, false);
             }
         }
         
@@ -196,14 +214,7 @@ export function setupControls(state) {
     // End turn button click handler
     endTurnBtn.addEventListener('click', () => {
         // Log the end turn action
-        window.logStandardAction({
-            type: 'endTurn',
-            actor: { 
-                playerId: state.currentPlayer,
-                name: `Player ${state.currentPlayer + 1}`
-            },
-            isAI: false
-        });
+        window.logStandardAction('endTurn', { playerId: state.currentPlayer, name: `Player ${state.currentPlayer + 1}` }, null, null, false);
         
         originalPosition = null;
         nextTurn();
@@ -321,13 +332,7 @@ function handleCellClick(cell, state, selectedAbilityIndex) {
                 });
                 
                 // Log the area attack header
-                window.logStandardAction({
-                    type: 'special',
-                    actor: state.selectedCharacter,
-                    position: cell,
-                    ability: ability,
-                    isAI: false
-                });
+                window.logStandardAction('special', state.selectedCharacter, cell, null, false, ability, null);
                 
                 // If no targets in area, still log it
                 if (targets.length === 0) {
@@ -342,30 +347,8 @@ function handleCellClick(cell, state, selectedAbilityIndex) {
                     displayCombatResult(result, target);
                     hitAny = hitAny || result.hit;
                     
-                    // Log detailed result for each target
-                    const hitMiss = result.hit ? 'Hit!' : 'Miss';
-                    let message = `→ ${target.class.name}: ${hitMiss}`;
-                    
-                    if (result.hit) {
-                        message += ` (${result.baseDamage}`;
-                        if (result.bonusDamage > 0) {
-                            message += ` + ${result.bonusDamage} bonus`;
-                        }
-                        message += ' damage)';
-                        
-                        if (ability.saveDifficulty > 0) {
-                            const saveSuccess = result.saveRoll >= ability.saveDifficulty;
-                            message += `\n  Save: ${result.saveRoll} vs DC ${ability.saveDifficulty} (${saveSuccess ? 'Success - Half damage' : 'Failure'})`;
-                        }
-                        
-                        message += `\n  Health: ${target.health}/${target.class.healthPoints}`;
-                        
-                        if (target.health <= 0) {
-                            message += '\n  Defeated!';
-                        }
-                    }
-                    
-                    addLogEntry(message, ['attack', result.hit ? 'hit' : 'miss']);
+                    // Log detailed result for each target using standardized format
+                    window.logStandardAction('special', state.selectedCharacter, null, target, false, ability, result);
                 }
                 
                 // Always mark ability as used, regardless of hits or targets
@@ -396,24 +379,10 @@ function handleCellClick(cell, state, selectedAbilityIndex) {
                     displayCombatResult(result, target);
                     
                     // Log the attack using standardized format
-                    window.logStandardAction({
-                        type: selectedAbilityIndex === 0 ? 'attack' : 'special',
-                        actor: state.selectedCharacter,
-                        target: target,
-                        ability: ability,
-                        result: result,
-                        isAI: false
-                    });
+                    window.logStandardAction('attack', state.selectedCharacter, null, target, false, ability, result);
                 } else {
                     // Log missed attack when targeting an empty cell
-                    window.logStandardAction({
-                        type: selectedAbilityIndex === 0 ? 'attack' : 'special',
-                        actor: state.selectedCharacter,
-                        position: cell,
-                        ability: ability,
-                        result: { hit: false },
-                        isAI: false
-                    });
+                    window.logStandardAction('attack', state.selectedCharacter, null, null, false, ability, { hit: false });
                 }
                 
                 // Always mark ability as used, regardless of hit or miss or target presence

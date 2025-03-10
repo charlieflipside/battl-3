@@ -32,33 +32,44 @@ function updateCharacterStats(state) {
     const character = state.selectedCharacter;
     
     let html = `
-        <p><strong>Name:</strong> ${character.name}</p>
+        <p class="name">${character.name}</p>
         <p><strong>Class:</strong> ${character.class.name}</p>
         <p><strong>Health:</strong> ${character.health}/${character.class.healthPoints}</p>
-        <p><strong>Position:</strong> (${character.position.x}, ${character.position.y})</p>
+        <p><strong>Position:</strong> ${toGridCoord(character.position.x, character.position.y)}</p>
         <p><strong>Actions:</strong> `;
     
     if (character.hasMoved) {
-        html += '<span style="color: #888;">Move (Used)</span> ';
+        html += '<span class="status-used">Move (Used)</span> ';
     } else {
-        html += '<span style="color:rgb(79, 126, 255);">Move (Available)</span> ';
+        html += '<span class="status-available">Move (Available)</span> ';
     }
     
     if (character.hasAttacked) {
-        html += '<span style="color: #888;">Attack (Used)</span>';
+        html += '<span class="status-used">Attack (Used)</span>';
     } else {
-        html += '<span style="color:rgb(65, 132, 255);">Attack (Available)</span>';
+        html += '<span class="status-available">Attack (Available)</span>';
     }
     
-    html += '</p><p><strong>Abilities:</strong></p><ul>';
+    html += '</p><p><strong>Abilities:</strong></p><ul class="abilities-list">';
     
     character.abilities.forEach(ability => {
-        html += `<li>${ability.displayName} - Range: ${ability.range}, Damage: ${ability.damage}</li>`;
+        const abilityIcon = ability.icon || (ability.isSpecial ? '✨' : '⚔️');
+        html += `<li class="ability-item ${ability.isSpecial ? 'special-ability' : ''}">
+            <span class="ability-icon">${abilityIcon}</span>
+            <span class="ability-name">${ability.displayName}</span> - 
+            <span class="ability-stats">Range: ${ability.range}, Damage: ${ability.damage}</span>
+        </li>`;
     });
     
     html += '</ul>';
     
     statsContainer.innerHTML = html;
+}
+
+// Helper function to convert coordinates to grid notation
+function toGridCoord(x, y) {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    return `${letters[x]}${y + 1}`;
 }
 
 // Update the action buttons based on the selected character and current phase

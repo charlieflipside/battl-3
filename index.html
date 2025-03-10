@@ -7,6 +7,91 @@
     <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body>
+    <!-- Game Setup Modal -->
+    <div id="game-setup-modal" class="modal">
+        <div class="modal-content">
+            <h2>Game Setup</h2>
+            
+            <!-- Map Selection -->
+            <div class="setup-section">
+                <h3>Select Map</h3>
+                <div class="map-selection">
+                    <div class="map-options">
+                        <label>
+                            <input type="radio" name="map-select" value="DEFAULT" checked>
+                            <span>🏞️ Basic Arena</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="map-select" value="SMALL_ARENA">
+                            <span>🏟️ Small Arena</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="map-select" value="RIVER_CROSSING">
+                            <span>🌊 River Crossing</span>
+                        </label>
+                    </div>
+                    <div class="map-preview">
+                        <canvas id="map-preview-canvas" width="300" height="300"></canvas>
+                        <div id="map-description"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Team Selection -->
+            <div class="setup-section">
+                <h3>Select Your Team (Choose 3 Characters)</h3>
+                <div class="team-selection">
+                    <div class="character-option">
+                        <h4>Mage</h4>
+                        <div class="character-stats">
+                            <p>HP: 20 | Attack: 8 | AC: 15</p>
+                            <p>Move: 30 | Save: 6</p>
+                            <p>Bonus vs: Fighter (+3)</p>
+                        </div>
+                        <div class="character-counter">
+                            <button class="counter-btn minus" data-class="MAGE">-</button>
+                            <span class="counter" id="mage-counter">1</span>
+                            <button class="counter-btn plus" data-class="MAGE">+</button>
+                        </div>
+                    </div>
+                    <div class="character-option">
+                        <h4>Fighter</h4>
+                        <div class="character-stats">
+                            <p>HP: 30 | Attack: 5 | AC: 18</p>
+                            <p>Move: 60 | Save: 3</p>
+                            <p>Bonus vs: Ranger (+3)</p>
+                        </div>
+                        <div class="character-counter">
+                            <button class="counter-btn minus" data-class="FIGHTER">-</button>
+                            <span class="counter" id="fighter-counter">1</span>
+                            <button class="counter-btn plus" data-class="FIGHTER">+</button>
+                        </div>
+                    </div>
+                    <div class="character-option">
+                        <h4>Ranger</h4>
+                        <div class="character-stats">
+                            <p>HP: 25 | Attack: 4 | AC: 18</p>
+                            <p>Move: 30 | Save: 5</p>
+                            <p>Bonus vs: Mage (+3)</p>
+                        </div>
+                        <div class="character-counter">
+                            <button class="counter-btn minus" data-class="RANGER">-</button>
+                            <span class="counter" id="ranger-counter">1</span>
+                            <button class="counter-btn plus" data-class="RANGER">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="team-summary">
+                    <p>Selected: <span id="total-selected">3</span>/3 characters</p>
+                </div>
+            </div>
+            
+            <div class="setup-controls">
+                <button id="start-game-btn" class="big-btn">Start Game</button>
+            </div>
+        </div>
+    </div>
+
     <div class="game-container">
         <!-- Header -->
         <div class="game-header">
@@ -31,7 +116,6 @@
         <!-- Character Info (Left Column) -->
         <div class="character-info">
             <div id="character-header">
-                <h3>Selected Character</h3>
                 <div id="character-stats"></div>
             </div>
             
@@ -62,6 +146,7 @@
         <!-- Battlefield (Center Column) -->
         <div class="battlefield-container">
             <canvas id="battlefield" width="800" height="600"></canvas>
+            <div id="terrain-info" class="terrain-info"></div>
         </div>
         
         <!-- Battle Log (Right Column) -->
